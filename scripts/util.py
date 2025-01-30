@@ -188,7 +188,7 @@ def frames_to_timecode(total_frames, fps):
     m = int(remaining // (fps * 60))
     remaining = remaining - (m * fps * 60)
     s = int(remaining // fps)
-    f = int(remaining - (s * fps))
+    f = int(remaining - (s * fps)) + 1 # needed?
 
     # Handle cases where frame count exceeds fps
     if f >= int(fps):
