@@ -52,7 +52,7 @@ This script will look through a folder of footage and find matching clips (based
 
 ## dewarp.py
 Dewarps and aligns the dual fisheye footage (using an STMap?).
-Multiple options for implementation: ffmpeg + remap (CPU only),  
+Multiple options for implementation: ffmpeg + remap (CPU only), ffmpeg + v360 (CPU only), or gstreamer (either gst-nvdewarper or gst-nvivafilter + cv::cuda::remap)
 
 # The Setup™️
 2x GoPro Hero 13, FeiyuTech Scorp-C, SIRUI AM-404FL, Zoom H2essential, Movo SMM5-B Shock Mount, a 3D-printed bracket to hold both GoPros securely
