@@ -9,7 +9,7 @@ However, the biggest pain points with two separate cameras is synchronization an
 
 ## Tips for shooting with two GoPros
 - Use Timecode Sync regularly to keep both cameras in sync. This can be done in the [official gopro app](https://community.gopro.com/s/article/HERO12-Black-Timecode-Sync), or via the [labs firmware](https://gopro.github.io/labs/) + the [QR Code Generators](https://gopro.github.io/labs/control/custom/).
-- To get the full resolution and FoV, you need the Max Lens Mod 2.0 / Ultrawide Lens the following settings:
+- To get the full resolution and FoV, you need the Max Lens Mod 2.0 / Ultrawide Lens with the following settings:
   - Lens: Standard (do not enable the max / ultrawide lens mode)
   - Framing: 8:7
   - Resolution: 5.3K
@@ -33,12 +33,13 @@ ffplay -vcodec hevc_cuvid GX010004.mp4
 To convert the raw footage from your GoPros into something you can watch in VR180 with any device, there are a couple of steps that need to happen:
   1. left and right footage clips need to be synchronized to the frame to avoid any ghosting and visual artifacts
   2. the clips need to be put side-by-side
-  3. the fisheye footage needs to be remapped into an equirectangular format
-  4. left and right need to be calibrated (i.e. slightly transformed) so that the stereo looks correct
+  3. left and right need to be calibrated (i.e. slightly transformed) so that the stereo looks correct
+  4. the fisheye footage needs to be remapped into an equirectangular format
 
-On the EOS VR side, this can be done with the EOS VR Utility, however this will cost you 5$ per month for something you can do for free, and only work with Canon Cameras. You also have very little control about the process, and can only adjust basic settings.
+On the EOS VR side, this can be done with the EOS VR Utility, however this will cost you 5$ per month for something you can do for free, and only works with Canon Cameras. You also have very little control about the process, and can only adjust basic settings.
 
-Steps 3 and 4 can be done combined and more efficient with an STMap. To generate such an STMap, you can use the Fusion Composition: 
+Steps 3 and 4 can be done combined and more efficient with an STMap.
+To generate such an STMap, you can use the KartaVR Fusion Composition "Dual Fisheye STMap Creation v001".
 
 I recommend to watch the following videos to get a better understanding:
 - https://www.youtube.com/watch?v=kwVlVEXg3og
@@ -50,7 +51,8 @@ I recommend to watch the following videos to get a better understanding:
 This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. No dewarping / conversion to equirectangular will be done, to allow for more flexibility for calibration and mask (and also because ffmpegs remap is not gpu/cuda accelerated...).
 
 ## dewarp.py
-Dewarps and aligns the dual fisheye footage using an STMap. GPU accelerated and faster than Resolve and TouchDesigner!
+Dewarps and aligns the dual fisheye footage (using an STMap?).
+Multiple options for implementation: ffmpeg + remap (CPU only),  
 
 # The Setup™️
 2x GoPro Hero 13, FeiyuTech Scorp-C, SIRUI AM-404FL, Zoom H2essential, Movo SMM5-B Shock Mount, a 3D-printed bracket to hold both GoPros securely
@@ -68,7 +70,8 @@ Ingress
 - Run the `sync.py` script to organize, match, align, trim and combine
 
 Process (for each clip)
-- Generate STMap (i.e. using Davinci Fusion/Resolve and the )
+- Generate STMap (in DaVinci Fusion/Resolve) -> or re-use an STMap if you're confident the cameras have not moved
+- Apply the STMap (dewarping and converting to equirectangular) using TouchDesigner and the Stitch template
 
 
 # Notes

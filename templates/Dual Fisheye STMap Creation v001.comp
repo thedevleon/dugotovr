@@ -1,0 +1,856 @@
+Composition {
+	CurrentTime = 1,
+	RenderRange = { 1, 1 },
+	GlobalRange = { 1, 2 },
+	CurrentID = 1441,
+	HiQ = true,
+	PlaybackUpdateMode = 0,
+	StereoMode = false,
+	Version = "Fusion Studio 19.0 build 39",
+	SavedOutputs = 1,
+	HeldTools = 0,
+	DisabledTools = 0,
+	LockedTools = 0,
+	AudioOffset = 0,
+	Resumable = true,
+	OutputClips = {
+		"Reactor:/Deploy/Macros/KartaVR/Images/Red_V-Raptor_EOS_RF52_STMap.0001.exr"
+	},
+	Tools = {
+		Loader = Loader {
+			Clips = {
+				Clip {
+					ID = "Clip1",
+					Filename = "Reactor:/Deploy/Macros/KartaVR/Images/RED Digital V-Raptor 8K With Canon RF5.2mm Dual Fisheye Lens.jpg",
+					FormatID = "JpegFormat",
+					StartFrame = -1,
+					LengthSetManually = true,
+					TrimIn = 0,
+					TrimOut = 0,
+					ExtendFirst = 0,
+					ExtendLast = 0,
+					Loop = 0,
+					AspectMode = 0,
+					Depth = 0,
+					TimeCode = 0,
+					GlobalStart = 1,
+					GlobalEnd = 1
+				}
+			},
+			NameSet = true,
+			Inputs = {
+				["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, }
+			},
+			ViewInfo = OperatorInfo { Pos = { -55, 181.5 } },
+			Colors = { TileColor = { R = 0.266666666666667, G = 0.56078431372549, B = 0.396078431372549 }, }
+		},
+		PipeRouter3 = PipeRouter {
+			Inputs = {
+				Input = Input {
+					SourceOp = "Loader",
+					Source = "Output",
+				}
+			},
+			ViewInfo = PipeRouterInfo { Pos = { 165, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		STMap_Underlay1 = Underlay {
+			NameSet = true,
+			ViewInfo = UnderlayInfo {
+				Pos = { 605, 115.5 },
+				Size = { 975.208, 239.929 }
+			},
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		PipeRouter1 = PipeRouter {
+			Inputs = {
+				Input = Input {
+					SourceOp = "Loader",
+					Source = "Output",
+				}
+			},
+			ViewInfo = PipeRouterInfo { Pos = { 165, -16.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		AutoDomain1 = AutoDomain {
+			Inputs = {
+				Input = Input {
+					SourceOp = "kvrViewer3",
+					Source = "Output1",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 825, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		Media_Underlay = Underlay {
+			NameSet = true,
+			ViewInfo = UnderlayInfo {
+				Pos = { -55, 148.5 },
+				Size = { 144.667, 112.015 }
+			},
+			Colors = { TileColor = { R = 0.266666666666667, G = 0.56078431372549, B = 0.396078431372549 }, }
+		},
+		kvrLensStereo1 = Fuse.kvrLensStereo {
+			Inputs = {
+				LensModel = Input { Value = 1, },
+				InputStereo = Input { Value = 2, },
+				Image1 = Input {
+					SourceOp = "kvrCropStereo3",
+					Source = "Output1",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 605, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		Note1 = Note {
+			Inputs = {
+				Comments = Input { Value = "This example processes Canon EOS 180VR footage filmed with a RED V-Raptor camera body and a Canon RF 5.2mm Dual Stereo Fisheye 190° Lens. \n\nAn ST Map warping template was generated using a kvrSTMapGenerator node to create the source ST Map default red/green gradient pattern.\n\nThe kvrCropStereo node is used to swap the position of the left and right eye fisheye images, and re-crop the images to center them.\n\nThe kvrLensStereo node is set to use the Panotools lens distortion model. You can use this node to correct circular fisheye lens based f-theta distortion.\n\nThe kvrViewer node set to use the Fisheye image projection converts the circular fisheye imagery into 180VR stereo 3D 180x180° LatLong output.\n\nThe STMapper node allows us to preview the STMap effect in the comp to validate the output.\n\nFusion's right-click in the node view > Copy/Paste Instance contextual menu items were used to duplicate the warping nodes and create a instanced version of the nodes that automatically mirror those settings. This allowed us to swap out the RGB imagery and run an ST map warping template through in their place.\n\nWhen you go to render out the STMap template image, make sure to set the timeline duration of the Fusion comp to 1 frame so you don't end up rendering a longer sequence of STMap files to disk.\n\nFor more information about ST Maps check out the article:\nhttps://docs.google.com/document/d/1lQ-wc9ucLJqj-HL7iKMNWA71klV5O1fk2-JicRB6gDY/edit?usp=sharing", }
+			},
+			ViewInfo = StickyNoteInfo {
+				Pos = { 277.302, -643.5 },
+				Flags = {
+					Expanded = true
+				},
+				Size = { 806.517, 532.191 }
+			},
+		},
+		Note2 = Note {
+			Inputs = {
+				Comments = Input { Value = "The footage was photographed by Hugh Hou (https://www.youtube.com/hughhoufilm). \n\nMedia (c) Copyright 2022 Hugh Hou.\n\nThe media was made available for use in Resolve/Fusion/Kartaverse based immersive tutorials and example project files under a Creative Commons Attribution-ShareAlike 4.0 International License (https://creativecommons.org/licenses/by-sa/4.0/).", }
+			},
+			ViewInfo = StickyNoteInfo {
+				Pos = { 1100, -346.5 },
+				Flags = {
+					Expanded = true
+				},
+				Size = { 416.985, 235.34 }
+			},
+		},
+		kvrViewer3 = Fuse.kvrViewer {
+			CurrentSettings = 2,
+			CustomData = {
+				Settings = {
+					[1] = {
+						Tools = ordered() {
+							kvrViewer3 = Fuse.kvrViewer {
+								Inputs = {
+									InputStereo = Input { Value = 2 },
+									ImageProjection = Input { Value = 3 },
+									Image1 = Input {
+										SourceOp = "kvrLensStereo1",
+										Source = "Output1"
+									},
+									FieldOfView = Input { Value = 190 }
+								},
+								Colors = { TileColor = { B = 0.396078431372549, G = 0.56078431372549, R = 0.266666666666667 } },
+								CtrlWZoom = false,
+								ViewInfo = OperatorInfo { Pos = { 1705, 16.5 } },
+								Version = 500,
+								CustomData = {
+								}
+							}
+						}
+					}
+				}
+			},
+			Inputs = {
+				ImageProjection = Input { Value = 3, },
+				FieldOfView = Input { Value = 190, },
+				InputStereo = Input { Value = 2, },
+				Image1 = Input {
+					SourceOp = "kvrLensStereo1",
+					Source = "Output1",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 715, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		kvrSTMapGenerator1 = Fuse.kvrSTMapGenerator {
+			Inputs = {
+				AutoResolution = Input { Value = 0, },
+				Width = Input { Value = 8570, },
+				Height = Input { Value = 5020, },
+				Input = Input {
+					SourceOp = "PipeRouter3",
+					Source = "Output",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 385, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		kvrCropStereo3 = Fuse.kvrCropStereo {
+			Inputs = {
+				Center1 = Input { Value = { 0.261487132406852, 0.494707661290323 }, },
+				Width1 = Input { Value = 0.478, },
+				Height1 = Input { Value = 0.816, },
+				Center2 = Input { Value = { 0.746, 0.5 }, },
+				Width2 = Input { Value = 0.478, },
+				Height2 = Input { Value = 0.816, },
+				SwapEyes = Input { Value = 1, },
+				Image1 = Input {
+					SourceOp = "kvrSTMapGenerator1",
+					Source = "Output",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 495, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		STMapper1 = Fuse.STMapper {
+			Inputs = {
+				Window = Input { Value = 0, },
+				ClippingMode = Input { Value = 1, },
+				Texture = Input {
+					SourceOp = "PipeRouter2",
+					Source = "Output",
+				},
+				Input = Input {
+					SourceOp = "AutoDomain1",
+					Source = "Output",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 825, 313.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 120
+		},
+		Instance_kvrCropStereo3 = Fuse.kvrCropStereo {
+			SourceOp = "kvrCropStereo3",
+			Inputs = {
+				ScriptEdit = Input {
+				},
+				ScriptReload = Input {
+				},
+				Image1Nest = Input {
+				},
+				Image2Nest = Input {
+				},
+				CopySize1 = Input {
+				},
+				CopySize2 = Input {
+				},
+				ResetGrades = Input {
+				},
+				StereoNest = Input {
+				},
+				Anaglyph = Input {
+				},
+				EditNest = Input {
+				},
+				EditScript = Input {
+				},
+				ReloadScript = Input {
+				},
+				Image1 = Input {
+					SourceOp = "Resize1",
+					Source = "Output",
+				},
+				Image2 = Input {
+				},
+				CommentsNest = Input {
+				},
+				FrameRenderScriptNest = Input {
+				},
+				StartRenderScripts = Input {
+				},
+				EndRenderScripts = Input {
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 495, -16.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		Instance_kvrLensStereo1 = Fuse.kvrLensStereo {
+			SourceOp = "kvrLensStereo1",
+			Inputs = {
+				ScriptEdit = Input {
+				},
+				ScriptReload = Input {
+				},
+				LensDistortionModelNest = Input {
+				},
+				BCRadialDistortionNest = Input {
+				},
+				BCTangentialDistortion = Input {
+				},
+				PTRadialDistortionNest = Input {
+				},
+				PTTransformNest = Input {
+				},
+				SERadialDistortionNest = Input {
+				},
+				StereoNest = Input {
+				},
+				Anaglyph = Input {
+				},
+				EdgeSettings = Input {
+				},
+				InReset = Input {
+				},
+				EditNest = Input {
+				},
+				EditScript = Input {
+				},
+				ReloadScript = Input {
+				},
+				Image1 = Input {
+					SourceOp = "Instance_kvrCropStereo3",
+					Source = "Output1",
+				},
+				Image2 = Input {
+				},
+				CommentsNest = Input {
+				},
+				FrameRenderScriptNest = Input {
+				},
+				StartRenderScripts = Input {
+				},
+				EndRenderScripts = Input {
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 605, -16.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		ST_Saver = Saver {
+			CtrlWZoom = false,
+			NameSet = true,
+			Inputs = {
+				ProcessWhenBlendIs00 = Input { Value = 0, },
+				Clip = Input {
+					Value = Clip {
+						Filename = "Reactor:/Deploy/Macros/KartaVR/Images/Red_V-Raptor_EOS_RF52_STMap.0001.exr",
+						FormatID = "OpenEXRFormat",
+						Length = 0,
+						Saving = true,
+						TrimIn = 0,
+						ExtendFirst = 0,
+						ExtendLast = 0,
+						Loop = 1,
+						AspectMode = 0,
+						Depth = 0,
+						TimeCode = 0,
+						GlobalStart = -2000000000,
+						GlobalEnd = 0
+					},
+				},
+				OutputFormat = Input { Value = FuID { "OpenEXRFormat" }, },
+				["Gamut.SLogVersion"] = Input { Value = FuID { "SLog2" }, },
+				Input = Input {
+					SourceOp = "AutoDomain1",
+					Source = "Output",
+				},
+				["OpenEXRFormat.Depth"] = Input { Value = 2, }
+			},
+			ViewInfo = OperatorInfo { Pos = { 992.302, 181.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		Instance_kvrViewer3 = Fuse.kvrViewer {
+			CurrentSettings = 2,
+			CustomData = {
+				Settings = {
+					[1] = {
+						Tools = ordered() {
+							kvrViewer3 = Fuse.kvrViewer {
+								Inputs = {
+									InputStereo = Input { Value = 2 },
+									ImageProjection = Input { Value = 3 },
+									FieldOfView = Input { Value = 190 },
+									Image1 = Input {
+										SourceOp = "kvrLensStereo1",
+										Source = "Output1"
+									}
+								},
+								Colors = { TileColor = { R = 0.266666666666667, G = 0.56078431372549, B = 0.396078431372549 } },
+								CtrlWZoom = false,
+								ViewInfo = OperatorInfo { Pos = { 1705, 16.5 } },
+								Version = 500,
+								CustomData = {
+								}
+							}
+						}
+					},
+				}
+			},
+			SourceOp = "kvrViewer3",
+			Inputs = {
+				EffectMask = Input {
+				},
+				SettingsNest = Input {
+				},
+				ScriptEdit = Input {
+				},
+				ScriptReload = Input {
+				},
+				InReset = Input {
+				},
+				Transforms = Input {
+				},
+				Projection = Input {
+				},
+				StereoNest = Input {
+				},
+				Anaglyph = Input {
+				},
+				MaskingNest = Input {
+				},
+				EdgeSettings = Input {
+				},
+				EditNest = Input {
+				},
+				EditScript = Input {
+				},
+				ReloadScript = Input {
+				},
+				Image1 = Input {
+					SourceOp = "Instance_kvrLensStereo1",
+					Source = "Output1",
+				},
+				Image2 = Input {
+				},
+				CommentsNest = Input {
+				},
+				FrameRenderScriptNest = Input {
+				},
+				StartRenderScripts = Input {
+				},
+				EndRenderScripts = Input {
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 716.151, -16.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, },
+			Version = 500
+		},
+		PipeRouter2 = PipeRouter {
+			Inputs = {
+				Input = Input {
+					SourceOp = "Loader",
+					Source = "Output",
+				}
+			},
+			ViewInfo = PipeRouterInfo { Pos = { 165, 313.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		Color_Warp_Underlay = Underlay {
+			NameSet = true,
+			ViewInfo = UnderlayInfo {
+				Pos = { 605, -82.5 },
+				Size = { 970.253, 171.972 }
+			},
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		},
+		Resize1 = BetterResize {
+			Inputs = {
+				Width = Input { Value = 8570, },
+				Height = Input { Value = 5020, },
+				HiQOnly = Input { Value = 0, },
+				PixelAspect = Input { Value = { 1, 1 }, },
+				Input = Input {
+					SourceOp = "PipeRouter1",
+					Source = "Output",
+				}
+			},
+			ViewInfo = OperatorInfo { Pos = { 385, -16.5 } },
+			Colors = { TileColor = { R = 1, G = 0.658823529411765, B = 0.2 }, }
+		}
+	},
+	Frames = {
+		{
+			FrameTypeID = "ChildFrame",
+			Mode = 3,
+			LayoutPreset = 0,
+			PresetName = "Default",
+			Left = 0,
+			Top = 27,
+			Width = 1786,
+			Height = 871,
+			ZoneInfo = {
+				["!Right"] = {
+				},
+				["!Left"] = {
+				},
+				AuxLeft = { Expanded = true },
+				Right = { Expanded = true, },
+				Left = { Expanded = false, },
+				AuxRight = { Expanded = true }
+			},
+			ViewInfo = {
+				Viewer1 = { Show = true, RatioY = 0.01, RatioX = 0.292602847072254, },
+				InnerLeft = {
+				},
+				MainSplit = {
+					RatioX = 100,
+					RatioY = 1.17545963229417,
+				},
+				CenterSplit = {
+					RatioX = 1.23409123384797,
+					RatioY = 100,
+				},
+				Viewer2 = { Show = true, RatioX = 0.280616706348813, RatioY = 0.01, MRU = 1, Adjust = false, },
+				Comments = { Show = false },
+				Time = { Show = true, RatioX = 100, },
+				InnerColumns = {
+					RatioX = 100,
+					RatioY = 1.82801258992806,
+				},
+				Keyframes = { Show = false, },
+				LayoutStrip = { Show = true, RatioX = 100, },
+				Inspector = { Show = true, RatioX = 100, RatioY = 1, MRU = 1, Adjust = false, },
+				InnerRight = {
+				},
+				ActionStrip = { Show = false, Adjust = true, MRU = 0, RatioX = 100, },
+				OuterColumns = {
+					RatioX = 100,
+					RatioY = 1,
+				},
+				Effects = { Show = false, },
+				Clips = { Show = false, },
+				Metadata = { Show = false, },
+				OuterLeft = {
+				},
+				ViewerSplit = {
+					RatioX = 100,
+					RatioY = 1,
+				},
+				Nodes = { Show = true, RatioX = 1, RatioY = 100, MRU = 2, Adjust = false, },
+				OuterRight = {
+					RatioY = 100,
+					PixelX = 404,
+				},
+				MediaPool = { Show = false, },
+				Spline = { Show = false, }
+			},
+			Views = ordered() {
+				Effects = MultiView {
+					Active = "EffectView",
+					ViewList = ordered() {
+						EffectView = "EffectView"
+					},
+				},
+				Nodes = MultiView {
+					Active = "FlowView",
+					ViewList = ordered() {
+						FlowView = "FlowView"
+					},
+					FlowView = FlowView {
+						Flags = { AutoSnap = true },
+						NavigatorSize = { 200, 140 },
+						Direction = "Horizontal",
+						PipeStyle = "Direct",
+						RootScale = 0.579132,
+						RootOffset = { 56.6509, 400.984 }
+					}
+				},
+				Keyframes = MultiView {
+					Active = "TimelineView",
+					ViewList = ordered() {
+						TimelineView = "TimelineView"
+					},
+					TimelineView = TimelineView {
+						TreeControlState = {
+						},
+						DisplayMode = "Types",
+						ShowCurrentTimeTools = true,
+						Filter = "Show All",
+						ShowSelectedTools = false,
+						ShowAnimatedToolsOnly = false,
+						ShowEditBoxes = false,
+						KeyFrameView = {
+							Position = { Left = 232, Bottom = 320 },
+							ScaleX = 0.00214424951267056,
+							OffsetX = 0.94990253411306,
+							OffsetY = 0,
+							AutoScaling = "scroll",
+							AutoSnapTo = "frame",
+							AutoSnapToGuidelines = false,
+							GuidelinesGrabEnabled = true,
+							GuidelinesSnapTo = "frame"
+						},
+						Spreadsheet = { LeftPos = 232, Visible = false }
+					}
+				},
+				Spline = MultiView {
+					Active = "SplineView",
+					ViewList = ordered() {
+						SplineView = "SplineEditorView"
+					},
+					SplineView = SplineEditorView {
+						LeftPos = 264,
+						ScaleX = 0.2,
+						ScaleY = 0.00338983050847458,
+						OffsetX = -3.4,
+						OffsetY = 0,
+						AutoScaling = "scroll",
+						AutoSnapTo = "frame",
+						AutoSnapToGuidelines = false,
+						GuidelinesSnapTo = "frame",
+						ShowKeyMarkers = false,
+						IndependentHandles = false,
+						ShowNonSplineModifiers = false,
+						GuidelinesGrabEnabled = true,
+						ShowOneToolOnly = false,
+						ShowSelectedTools = false,
+						ShowAllInputs = false,
+						Filter = "Show All"
+					}
+				},
+				Inspector = MultiView {
+					Active = "Tools",
+					ViewList = ordered() {
+						Tools = "ControlView",
+						Modifiers = "ModifierView"
+					},
+				},
+				Viewer1 = MultiView {
+					Active = "LeftView",
+					ViewList = ordered() {
+						LeftView = "PreviewContainer"
+					},
+				},
+				Viewer2 = MultiView {
+					Active = "RightView",
+					ViewList = ordered() {
+						RightView = "PreviewContainer"
+					},
+				},
+				Time = "TimeView",
+				ActionStrip = "ActionStripView",
+				LayoutStrip = "LayoutStripView"
+			},
+			Layout = {
+				{ ID = "LayoutStrip", FixedY = 36, Resolve = false, Flat = true },
+				{
+					{
+						{ ID = "MediaPool", Fusion = false, RatioX = 1 },
+						{ ID = "Effects", RatioX = 1 },
+						Zone = "Left",
+						Rows = 2,
+						PaneID = "OuterLeft",
+						PixelX = 420
+					},
+					{
+						{
+							{
+								{ ID = "MediaPool", Fusion = false, RatioX = 1 },
+								{ ID = "Effects", RatioX = 1 },
+								PaneID = "InnerLeft",
+								MaxViews = 1,
+								PixelX = 420,
+								Rows = 2,
+								Zone = "!Left"
+							},
+							{
+								{
+									{ ID = "Viewer1", RatioY = 0.01, RatioX = 1 },
+									{ ID = "Viewer2", RatioX = 1 },
+									RatioY = 1,
+									Columns = 2,
+									PaneID = "ViewerSplit"
+								},
+								{ ID = "Time", FixedY = 83, Flat = true },
+								RatioX = 1,
+								Rows = 2
+							},
+							{
+								{ ID = "Inspector", RatioY = 1 },
+								{ ID = "Metadata", RatioY = 1, Fusion = false },
+								PaneID = "InnerRight",
+								MaxViews = 1,
+								PixelX = 420,
+								Rows = 2,
+								Zone = "!Right"
+							},
+							RatioY = 2,
+							Columns = 3,
+							PaneID = "InnerColumns"
+						},
+						{ ID = "ActionStrip", FixedY = 50, Flat = true },
+						{
+							{ ID = "Nodes", RatioX = 1 },
+							{ ID = "Spline", RatioX = 1 },
+							{ ID = "Keyframes", RatioX = 1 },
+							RatioY = 1,
+							Columns = 3,
+							PaneID = "MainSplit"
+						},
+						{ Fusion = false, ID = "Clips", LARGE_FixedY = 160, MEDIUM_FixedY = 138, SMALL_FixedY = 110 },
+						RatioX = 1,
+						Rows = 4,
+						PaneID = "CenterSplit"
+					},
+					{
+						{ ID = "Inspector", RatioY = 1 },
+						{ ID = "Metadata", RatioY = 1, Fusion = false },
+						Zone = "Right",
+						Rows = 2,
+						PaneID = "OuterRight",
+						PixelX = 420
+					},
+					RatioY = 1,
+					Columns = 3,
+					PaneID = "OuterColumns"
+				},
+				RatioX = 1,
+				Rows = 2,
+				RatioY = 1
+			},
+			TopBar = {
+				Left = { "Left", "MediaPool", "Effects", "Clips", "Nodes", "Console" },
+				Right = { "Spline", "Keyframes", "Metadata", "Inspector", "Right" }
+			}
+		}
+	},
+	Prefs = {
+		Comp = {
+			Interactive = {
+				Proxy = {
+					Scale = 2,
+				},
+			},
+			Memory = {
+				FramesAtOnce = 10,
+				Render = {
+					SimultaneousBranching = true
+				},
+				Interactive = {
+					SimultaneousBranching = true,
+				}
+			},
+			Views = {
+				RightView = {
+					Viewer = {
+						ScaleMode = 1,
+						CheckerUnderlay = false
+					},
+					SideB = {
+						PrevCtrlInactiveColor = 4278255360,
+						PickW = 1,
+						PickH = 1,
+						PrevCtrlActiveColor = 4278190335,
+						Viewer = {
+							EnableLUTs = false,
+							LUTPlugin = "FusionViewLUT",
+							FitMarginY = 0,
+							FitMarginX = 0,
+							FitMarginType = 0,
+							FarZ = -1000,
+							NearZ = 0
+						}
+					},
+				},
+				LeftView = {
+					Viewer = {
+						ShowControls = false,
+						CheckerUnderlay = false,
+						ScaleMode = 1,
+						Channel = 4294967295,
+					},
+					SideB = {
+						PrevCtrlInactiveColor = 4278255360,
+						PickW = 1,
+						PickH = 1,
+						PrevCtrlActiveColor = 4278190335,
+						Viewer = {
+							EnableLUTs = false,
+							LUTPlugin = "FusionViewLUT",
+							FitMarginY = 0,
+							FitMarginX = 0,
+							FitMarginType = 0,
+							FarZ = -1000,
+							NearZ = 0
+						}
+					},
+					Guides = {
+						Show = false,
+					},
+					Stereo = {
+						Enabled = false,
+						Stack = true,
+					},
+				},
+				View1 = {
+					Viewer = {
+						ShowControls = false,
+						ScaleMode = 1
+					},
+					PrevCtrlInactiveColor = 4278255360,
+					PickW = 1,
+					PickH = 1,
+					PrevCtrlActiveColor = 4278190335,
+					SideB = {
+						PrevCtrlInactiveColor = 4278255360,
+						PickW = 1,
+						PickH = 1,
+						PrevCtrlActiveColor = 4278190335,
+						Viewer = {
+							EnableLUTs = false,
+							LUTPlugin = "FusionViewLUT",
+							FitMarginY = 0,
+							FitMarginX = 0,
+							FitMarginType = 0,
+							FarZ = -1000,
+							NearZ = 0
+						}
+					}
+				},
+			},
+			Paths = {
+				Map = {
+				},
+			},
+			FrameFormat = {
+				Width = 1080,
+				GuideRatio = 1.77777777777778,
+				DepthFull = 3,
+				DepthPreview = 3,
+				DepthInteractive = 3,
+			},
+			Unsorted = {
+				GlobalStart = 1,
+				GlobalEnd = 2,
+				RenderSettings = {
+					Configs = {
+						Preview = {
+							StepRender = false,
+							PriorityClasses = "all",
+							ShowRenderNodes = false,
+							SizeType = 1,
+							CustomAspect = true,
+							CustomHeight = 160,
+							StepSize = 5,
+							CustomWidth = 200,
+							MotionBlur = true,
+							UpdateMode = "Some",
+							UseNetwork = false,
+							Quality = true
+						},
+						Final = {
+							StepRender = false,
+							PriorityClasses = "all",
+							ShowRenderNodes = false,
+							SizeType = 1,
+							CustomAspect = true,
+							CustomHeight = 160,
+							StepSize = 5,
+							CustomWidth = 200,
+							MotionBlur = true,
+							UpdateMode = "Some",
+							UseNetwork = false,
+							Quality = true
+						}
+					},
+					PreviewConfig = "Preview",
+					CurrentConfig = "Final"
+				}
+			},
+			FlowView = {
+				RemoveRouters = false
+			},
+			QuickTime = {
+			}
+		}
+	},
+}
+
