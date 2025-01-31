@@ -39,7 +39,7 @@ def match_videos(video_data):
     return video_pairs
 
 
-def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, cuda):
+def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda):
     cmd = []
 
     if cuda:
@@ -48,6 +48,16 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
         # overlay_cuda does not support 10-bit video (p010le)
         # hevc_nvenc only supports up to 8K resolution (8192)
         # workaround: decode on gpu, hwdownload, hstack, scale, hwupload, encode on gpu
+
+        filter_complex = ""
+        if crop and dewarp: # around 4.5 FPS
+            # sys.exit("v360 does not support p010le")
+            # maybe use yuv420p10le instead of p010le?
+            filter_complex = "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss][rss] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
+        if crop and not dewarp: # around 23 FPS
+            filter_complex = "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda"
+        if not crop:
+            sys.exit("CUDA acceleration requires cropping, as nvenc only supports up to a max width of 8192.")
 
         cmd = [
             "ffmpeg",
@@ -78,7 +88,7 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
             video2,
             "-shortest", # stop encoding when the shortest input ends
             "-filter_complex",
-            "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda", 
+            filter_complex, 
             "-metadata",
             f"timecode={tc}",  # Set new timecode
             "-c:a:0",
@@ -91,6 +101,17 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
         ]
 
     else:
+
+        filter_complex = ""
+        if crop and dewarp:
+            filter_complex = "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
+        if crop and not dewarp:
+            filter_complex = "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2 [out]"
+        if not crop and dewarp:
+            filter_complex = "[l][r] hstack=inputs=2; v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
+        if not crop and not dewarp:
+            filter_complex = "[l][r] hstack=inputs=2"
+
         cmd = [
             "ffmpeg",
             "-y",  # Overwrite output file if it exists
@@ -102,9 +123,11 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
             f"{start_sec2:.6f}",
             "-i",
             video2,
-            "-shortest", # stop encoding when the shortest input ends
+            "-t",
+            "1",
+            # "-shortest", # stop encoding when the shortest input ends
             "-filter_complex",
-            "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2" if crop else "[l][r] hstack=inputs=2",
+            filter_complex,
             "-metadata",
             f"timecode={tc}",  # Set new timecode
             "-c:a:0",
@@ -133,6 +156,7 @@ def main():
     parser.add_argument("egress", help="the path to egress to")
     parser.add_argument("-o", "--organize", help="create a folder structure of year-mm-dd/ at the egress", action="store_true", default=True)
     parser.add_argument("-c", "--crop", help="crop the 8:7 video to 1:1 before merging", action="store_true", default=True)
+    parser.add_argument("-d", "--dewarp", help="dewarp the fisheye video to VR180", action="store_true", default=False)
     parser.add_argument("--cuda", help="use CUDA accelerated operations", action="store_true", default=True)
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
 
@@ -146,6 +170,7 @@ def main():
     egress = args.egress
     organize = args.organize
     crop = args.crop
+    dewarp = args.dewarp
     cuda = args.cuda
 
     # check if the ingress directory exists
@@ -226,7 +251,7 @@ def main():
 
         # Clip and merge videos
         output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}.mp4")
-        clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, cuda)
+        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda)
 
 if __name__ == "__main__":
     main()

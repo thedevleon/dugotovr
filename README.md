@@ -48,10 +48,10 @@ I recommend to watch the following videos to get a better understanding:
 # Scripts
 
 ## sync.py
-This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. No dewarping / conversion to equirectangular will be done, to allow for more flexibility for calibration and mask (and also because ffmpegs remap is not gpu/cuda accelerated...).
+This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion, although it is a lot slower and also does not allow for stereo calibration -> you'll still need to calibrate in your editing software.
 
 ## dewarp.py
-Dewarps and aligns the dual fisheye footage (using an STMap?).
+Dewarps and aligns the dual fisheye footage using an STMap.
 Multiple options for implementation: ffmpeg + remap (CPU only), ffmpeg + v360 (CPU only), or gstreamer (either gst-nvdewarper or gst-nvivafilter + cv::cuda::remap)
 
 # The Setup™️
