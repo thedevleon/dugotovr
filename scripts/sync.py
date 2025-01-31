@@ -8,40 +8,6 @@ from datetime import timedelta
 
 from util import *
 
-
-# def clip_video(input_file, output_file, start_time, duration, new_timecode):
-#     """
-#     Clips a video using FFmpeg and resets the timecode while preserving original codecs.
-
-#     :param input_file: Path to the input video file.
-#     :param output_file: Path to the output (clipped) video file.
-#     :param start_time: Start time in seconds.
-#     :param duration: Duration in seconds.
-#     :param new_timecode: New timecode to set (format "HH:MM:SS;FF").
-#     """
-#     cmd = [
-#         "ffmpeg",
-#         "-ss",
-#         f"{start_time:.6f}",
-#         "-t",
-#         f"{duration:.6f}",
-#         "-i",
-#         input_file,
-#         "-c",
-#         "copy",  # Copy codecs
-#         "-metadata",
-#         f"timecode={new_timecode}",  # Set new timecode
-#         output_file,
-#     ]
-
-#     try:
-#         print(f"Clipping {input_file} -> {output_file}")
-#         subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-#         print(f"Successfully clipped {output_file}\n")
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error clipping {input_file}: {e.stderr}")
-#         sys.exit(1)
-
 def match_videos(video_data):
     """
     Matches videos into pairs based on creation time.
@@ -73,14 +39,104 @@ def match_videos(video_data):
     return video_pairs
 
 
-def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, duration_sec, fps, output_file, crop=False):
+def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_sec, output_file, tc, crop, cuda):
     # arguments for ffmpeg
-    # -ss: start time (in seconds), not timecode
-    # -t: duration (in seconds), not timecode
-    
-    print(video1, video2, start_sec1, start_sec2, duration_sec, fps, output_file, crop)
+    # -ss ss.ms = start time (in seconds), not timecode
+    # -t ss.ms = duration (in seconds), not timecode OR -frames:v : number of frames to process OR --shortest
+    # -c:a copy = copy audio
 
-    pass
+    cmd = []
+
+    if cuda:
+    # TODO CUDA acceleration for decoding (+crop), encoding, and using scale_npp for stacking
+    # CUDA crop: –crop (top)x(bottom)x(left)x(right)
+    # CUDA encode: -c:v hevc_nvenc 
+
+
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file if it exists
+            "-hwaccel",
+            "cuda",
+            "-hwaccel_output_format",
+            "cuda",
+            "-c:v",
+            "hevc_cuvid",
+            "-crop" if crop else "",
+            "0x0x332x332" if crop else "",
+            "-ss",
+            f"{start_sec1:.6f}",
+            "-i",
+            video1,
+            # "-hwaccel",
+            # "cuda",
+            # "-hwaccel_output_format",
+            # "cuda",
+            # "-c:v",
+            # "hevc_cuvid",
+            # "-crop" if crop else "",
+            # "0x0x332x332" if crop else "",
+            # "-ss",
+            # f"{start_sec2:.6f}",
+            # "-i",
+            # video2,
+            "-t",
+            # f"{clip_duration_sec:.6f}",
+            f"1.0", # for easier debugging, limit to one second
+            # "-filter_complex",
+            # "[l][r]overlay_cuda=x=0:y=0"
+            "-metadata",
+            f"timecode={tc}",  # Set new timecode
+            "-c:a:0",
+            "copy",
+            "-c:v",
+            "hevc_nvenc",
+            output_file
+        ]
+
+    else:
+        cmd = [
+            "ffmpeg",
+            "-y",  # Overwrite output file if it exists
+            "-ss",
+            f"{start_sec1:.6f}",
+            "-i",
+            video1,
+            "-ss",
+            f"{start_sec2:.6f}",
+            "-i",
+            video2,
+            "-t",
+            # f"{clip_duration_sec:.6f}",
+            f"1.0", # for easier debugging, limit to one second
+            "-filter_complex",
+            "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2" if crop else "[l][r] hstack=inputs=2",
+            "-metadata",
+            f"timecode={tc}",  # Set new timecode
+            "-c:a:0",
+            "copy",
+            "-c:v",
+            "libx265",
+            "-crf",
+            "26",
+            "-preset",
+            "fast",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            output_file
+        ]
+
+    print(" ".join(cmd))
+
+    try:
+        print(f"Clipping {video1} and {video2} -> {output_file}")
+        subprocess.run(cmd, check=True)
+        print(f"Successfully clipped and merged {output_file}\n")
+    except subprocess.CalledProcessError as e:
+        print(f"Error clipping and merging {video1} and {video2}: {e.stderr}")
+        sys.exit(1)
 
 def main():
 
@@ -89,6 +145,8 @@ def main():
     parser.add_argument("egress", help="the path to egress to")
     parser.add_argument("-o", "--organize", help="create a folder structure of year-mm-dd/ at the egress", action="store_true", default=True)
     parser.add_argument("-c", "--crop", help="crop the 8:7 video to 1:1 before merging", action="store_true", default=True)
+    parser.add_argument("--cuda", help="use CUDA accelerated operations", action="store_true", default=True)
+    parser.add_argument('--no-cuda', dest='cuda', action='store_false')
 
     if len(sys.argv) < 2:
         parser.print_help()
@@ -99,6 +157,8 @@ def main():
     ingress = args.ingress
     egress = args.egress
     organize = args.organize
+    crop = args.crop
+    cuda = args.cuda
 
     # check if the ingress directory exists
     if not os.path.exists(ingress):
@@ -160,7 +220,7 @@ def main():
         clip_start_frame = max(data1["start_frame"], data2["start_frame"])
         clip_end_frame = min(data1["end_frame"], data1["end_frame"])
         clip_duration_frames = clip_end_frame - clip_start_frame
-        clip_duration_seconds = clip_duration_frames / fps
+        clip_duration_sec = clip_duration_frames / fps
 
         # relative start frame
         start_frame1 = clip_start_frame - data1["start_frame"]
@@ -168,9 +228,12 @@ def main():
         start_sec1 = start_frame1 / fps
         start_sec2 = start_frame2 / fps
 
+        # for metadata
+        clip_start_tc = frames_to_timecode(clip_start_frame, fps)
+
         # Clip and merge videos
         output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}.mp4")
-        clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_seconds, fps, output_file, crop=args.crop)
+        clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_sec, output_file, clip_start_tc, crop, cuda)
 
 if __name__ == "__main__":
     main()
