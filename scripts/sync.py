@@ -39,19 +39,15 @@ def match_videos(video_data):
     return video_pairs
 
 
-def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_sec, output_file, tc, crop, cuda):
-    # arguments for ffmpeg
-    # -ss ss.ms = start time (in seconds), not timecode
-    # -t ss.ms = duration (in seconds), not timecode OR -frames:v : number of frames to process OR --shortest
-    # -c:a copy = copy audio
-
+def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, cuda):
     cmd = []
 
     if cuda:
-    # TODO CUDA acceleration for decoding (+crop), encoding, and using scale_npp for stacking
-    # CUDA crop: –crop (top)x(bottom)x(left)x(right)
-    # CUDA encode: -c:v hevc_nvenc 
 
+        # Unfortunate limitations of ffmpeg with CUDA acceleration
+        # overlay_cuda does not support 10-bit video (p010le)
+        # hevc_nvenc only supports up to 8K resolution (8192)
+        # workaround: decode on gpu, hwdownload, hstack, scale, hwupload, encode on gpu
 
         cmd = [
             "ffmpeg",
@@ -68,23 +64,21 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_
             f"{start_sec1:.6f}",
             "-i",
             video1,
-            # "-hwaccel",
-            # "cuda",
-            # "-hwaccel_output_format",
-            # "cuda",
-            # "-c:v",
-            # "hevc_cuvid",
-            # "-crop" if crop else "",
-            # "0x0x332x332" if crop else "",
-            # "-ss",
-            # f"{start_sec2:.6f}",
-            # "-i",
-            # video2,
-            "-t",
-            # f"{clip_duration_sec:.6f}",
-            f"1.0", # for easier debugging, limit to one second
-            # "-filter_complex",
-            # "[l][r]overlay_cuda=x=0:y=0"
+            "-hwaccel",
+            "cuda",
+            "-hwaccel_output_format",
+            "cuda",
+            "-c:v",
+            "hevc_cuvid",
+            "-crop" if crop else "",
+            "0x0x332x332" if crop else "",
+            "-ss",
+            f"{start_sec2:.6f}",
+            "-i",
+            video2,
+            "-shortest", # stop encoding when the shortest input ends
+            "-filter_complex",
+            "[0:v]hwdownload,format=p010le[l]; [1:v]hwdownload,format=p010le[r]; [l][r] hstack=inputs=2 [out]; [out] scale=8192:4096 [scaled]; [scaled] hwupload_cuda", 
             "-metadata",
             f"timecode={tc}",  # Set new timecode
             "-c:a:0",
@@ -106,9 +100,7 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_
             f"{start_sec2:.6f}",
             "-i",
             video2,
-            "-t",
-            # f"{clip_duration_sec:.6f}",
-            f"1.0", # for easier debugging, limit to one second
+            "-shortest", # stop encoding when the shortest input ends
             "-filter_complex",
             "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2" if crop else "[l][r] hstack=inputs=2",
             "-metadata",
@@ -117,14 +109,6 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_
             "copy",
             "-c:v",
             "libx265",
-            "-crf",
-            "26",
-            "-preset",
-            "fast",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
             output_file
         ]
 
@@ -218,9 +202,6 @@ def main():
 
         # Determine the overlapping interval
         clip_start_frame = max(data1["start_frame"], data2["start_frame"])
-        clip_end_frame = min(data1["end_frame"], data1["end_frame"])
-        clip_duration_frames = clip_end_frame - clip_start_frame
-        clip_duration_sec = clip_duration_frames / fps
 
         # relative start frame
         start_frame1 = clip_start_frame - data1["start_frame"]
@@ -231,9 +212,17 @@ def main():
         # for metadata
         clip_start_tc = frames_to_timecode(clip_start_frame, fps)
 
+        if organize:
+            # Create a folder structure based on creation time
+            creation_time = data1["creation_time"]
+            folder_name = creation_time.strftime("%Y-%m-%d")
+            egress = os.path.join(egress, folder_name)
+            if not os.path.exists(egress):
+                os.makedirs(egress)
+
         # Clip and merge videos
         output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}.mp4")
-        clip_and_merge_videos(video1, video2, start_sec1, start_sec2, clip_duration_sec, output_file, clip_start_tc, crop, cuda)
+        clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, cuda)
 
 if __name__ == "__main__":
     main()
