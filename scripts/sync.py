@@ -85,6 +85,8 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
             "copy",
             "-c:v",
             "hevc_nvenc",
+            "-b:v",
+            "200M", # TODO tune this
             output_file
         ]
 
@@ -109,6 +111,8 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
             "copy",
             "-c:v",
             "libx265",
+            "-crf",
+            "18", # default is 28
             output_file
         ]
 
