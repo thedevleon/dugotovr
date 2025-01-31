@@ -78,7 +78,7 @@ def clip_and_merge_videos(video1, video2, start_sec1, start_sec2, output_file, t
             video2,
             "-shortest", # stop encoding when the shortest input ends
             "-filter_complex",
-            "[0:v]hwdownload,format=p010le[l]; [1:v]hwdownload,format=p010le[r]; [l][r] hstack=inputs=2 [out]; [out] scale=8192:4096 [scaled]; [scaled] hwupload_cuda", 
+            "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda", 
             "-metadata",
             f"timecode={tc}",  # Set new timecode
             "-c:a:0",
