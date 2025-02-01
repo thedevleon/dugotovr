@@ -142,9 +142,7 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             f"{start_sec2:.6f}",
             "-i",
             video2,
-            "-t",
-            "1",
-            # "-shortest", # stop encoding when the shortest input ends
+            "-shortest", # stop encoding when the shortest input ends
             "-filter_complex",
             filter_complex,
             "-metadata",
