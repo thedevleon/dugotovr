@@ -60,9 +60,10 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
         # Unfortunate limitations of ffmpeg with CUDA acceleration
         # overlay_cuda does not support 10-bit video (p010le), so we can't use it and need to do hstack on the CPU instead, uploading and downloading the frames to and from the GPU in between 
         # hevc_nvenc only supports up to 8K resolution (8192), so we need to crop the video to 1:1 before merging
-        # hwdownload does not support yuvj420p (which you get if you film in GPLog), so we need to force format=p010le at the scale_cuda filter
+        # hwdownload does not support yuvj420p, so we need to force format=p010le at the scale_cuda filter (GPLog is apparently yuvj420p)
         # v360 only supports yuv420p10le and yuvj420p
-        # yuv420p10le == p010le (apparently, see https://superuser.com/questions/1614571/understanding-pixel-format-and-profile-when-encoding-10-bit-video-in-ffmpeg-with)
+        # yuv420p10le == p010le (apparently, see https://www.reddit.com/r/ffmpeg/comments/c1im2i/encode_4k_hdr_pixel_format/)
+        # 
 
 
         filter_complex = ""
@@ -75,7 +76,6 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
 
         cmd = [
             "ffmpeg",
-            "-y",  # Overwrite output file if it exists
             "-hwaccel",
             "cuda",
             "-hwaccel_output_format",
@@ -128,7 +128,6 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
 
         cmd = [
             "ffmpeg",
-            "-y",  # Overwrite output file if it exists
             "-ss",
             f"{start_sec1:.6f}",
             "-i",
@@ -271,9 +270,9 @@ def main():
             # Create a folder structure based on creation time
             creation_time = data1["creation_time"]
             folder_name = creation_time.strftime("%Y-%m-%d")
-            egress = os.path.join(egress, folder_name)
-            if not os.path.exists(egress):
-                os.makedirs(egress)
+            egress_full = os.path.join(egress, folder_name)
+            if not os.path.exists(egress_full):
+                os.makedirs(egress_full)
 
         # Clip and merge videos
         options = "_sync"
@@ -281,7 +280,7 @@ def main():
             options += "_crop"
         if dewarp:
             options += "_dewarp"
-        output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
+        output_file = os.path.join(egress_full, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
         process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda)
 
 if __name__ == "__main__":
