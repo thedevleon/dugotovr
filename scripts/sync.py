@@ -5,6 +5,7 @@ import argparse
 import glob
 from datetime import datetime
 from datetime import timedelta
+from timecode import Timecode
 
 from util import *
 
@@ -54,6 +55,11 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
 
     # additional accelerations to look into
     # hstack_vaapi, hstack_qsv
+
+    # alternatives to ss, as it seems not too accurate
+    # put -ss after -i -> didn't seem to work
+    # trim filter: 'trim=start_frame=n' -> couldn't get that to work as expected, only when setstp was also set, which severely reduced the bitrate for some odd reason
+    # select filter: 'select=gte(n\,100)' -> not tried yet.
 
     if cuda:
 
@@ -208,12 +214,7 @@ def main():
 
     for video in videos:
         creation_time, start_tc, duration, fps = get_metadata(video)
-        start_frame = timecode_to_frames(start_tc, fps)
-        duration_frames = int(duration * fps)
-        end_frame = (
-            start_frame + duration_frames - 1
-        )  # Subtract 1 to get the last frame
-        end_tc = frames_to_timecode(end_frame, fps)
+        start_timecode = Timecode('29.97', start_tc) # hardcoded for now, need to extract from video metadata (and round correctly)
 
         # Extract video name from path after ingress
         video_name = video.replace(ingress, "")
@@ -229,16 +230,12 @@ def main():
             elif "right" in video_name:
                 side = "right"
 
-        print(f"{video_name} --- Created: {creation_time}, Start TC: {start_tc}, End TC: {end_tc} Duration: {duration:.6f} seconds, FPS: {fps}")
+        print(f"{video_name} --- Created: {creation_time}, Start TC: {start_timecode}, Duration: {duration:.6f} seconds, FPS: {fps}")
 
         video_data[video] = {
             "creation_time": datetime.fromisoformat(creation_time),
-            "start_tc": start_tc,
-            "end_tc": end_tc,
-            "duration": duration,
+            "start_timecode": start_timecode,
             "fps": fps,
-            "start_frame": start_frame,
-            "end_frame": end_frame,
             "side": side
         }
 
@@ -252,19 +249,25 @@ def main():
 
         # Determine overlapping timecode interval
         (video1, data1), (video2, data2) = video_pair
-        fps = data1["fps"]
+
+        start_tc1 = data1["start_timecode"]
+        start_tc2 = data2["start_timecode"]
+        start_sec1 = 0.0
+        start_sec2 = 0.0
 
         # Determine the overlapping interval
-        clip_start_frame = max(data1["start_frame"], data2["start_frame"])
+        if start_tc1 > start_tc2:
+            start_difference = start_tc1 - start_tc2
+            start_sec2 = start_difference.to_realtime(True)
+        else:
+            start_difference = start_tc2 - start_tc1
+            start_sec1 = start_difference.to_realtime(True)
 
         # relative start frame
-        start_frame1 = clip_start_frame - data1["start_frame"]
-        start_frame2 = clip_start_frame - data2["start_frame"]
-        start_sec1 = start_frame1 / fps
-        start_sec2 = start_frame2 / fps
+        print(f"Start frame difference: {start_difference.frames} frames, {start_difference.to_realtime(True)} sec, tc: {start_difference}")
 
         # for metadata
-        clip_start_tc = frames_to_timecode(clip_start_frame, fps)
+        clip_start_tc = max(start_tc1, start_tc2)
 
         if organize:
             # Create a folder structure based on creation time
