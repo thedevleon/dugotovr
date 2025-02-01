@@ -34,6 +34,16 @@ def match_videos(video_data):
                 f"Skipping {video1[0]} and {video2[0]} pair due to different frame rates: {video1[1]['fps']} vs {video2[1]['fps']}"
             )
         else:
+
+            # Check that the videos are left and right sides
+            if video1[1]["side"] == video2[1]["side"]:
+                print(f"Skipping {video1[0]} and {video2[0]} pair as they are both {video1[1]['side']} sides.")
+                continue
+
+            # make sure that the first video is left and the second video is right, otherwise swap them
+            if video1[1]["side"] == "right":
+                video1, video2 = video2, video1
+
             video_pairs.append((video1, video2))
 
     return video_pairs
@@ -42,20 +52,24 @@ def match_videos(video_data):
 def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda):
     cmd = []
 
+    # additional accelerations to look into
+    # hstack_vaapi, hstack_qsv
+
     if cuda:
 
         # Unfortunate limitations of ffmpeg with CUDA acceleration
-        # overlay_cuda does not support 10-bit video (p010le)
-        # hevc_nvenc only supports up to 8K resolution (8192)
-        # workaround: decode on gpu, hwdownload, hstack, scale, hwupload, encode on gpu
+        # overlay_cuda does not support 10-bit video (p010le), so we can't use it and need to do hstack on the CPU instead, uploading and downloading the frames to and from the GPU in between 
+        # hevc_nvenc only supports up to 8K resolution (8192), so we need to crop the video to 1:1 before merging
+        # hwdownload does not support yuvj420p (which you get if you film in GPLog), so we need to force format=p010le at the scale_cuda filter
+        # v360 only supports yuv420p10le and yuvj420p
+        # yuv420p10le == p010le (apparently, see https://superuser.com/questions/1614571/understanding-pixel-format-and-profile-when-encoding-10-bit-video-in-ffmpeg-with)
+
 
         filter_complex = ""
-        if crop and dewarp: # around 4.5 FPS
-            # sys.exit("v360 does not support p010le")
-            # maybe use yuv420p10le instead of p010le?
-            filter_complex = "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss][rss] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
+        if crop and dewarp: # around 8.5 FPS
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss][rss] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
         if crop and not dewarp: # around 23 FPS
-            filter_complex = "[0:v] scale_cuda=4096:4096 [l]; [1:v] scale_cuda=4096:4096 [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda"
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda"
         if not crop:
             sys.exit("CUDA acceleration requires cropping, as nvenc only supports up to a max width of 8192.")
 
@@ -205,6 +219,17 @@ def main():
         # Extract video name from path after ingress
         video_name = video.replace(ingress, "")
 
+        # check if left or right is part of the video path
+        side = ""
+        if not "left" in video_name and not "right" in video_name:
+            print(f"Skipping {video_name} as it is not clear if it is the right or the left eye. Please include 'left' or 'right' in the path or filename.")
+            continue
+        else: 
+            if "left" in video_name:
+                side = "left"
+            elif "right" in video_name:
+                side = "right"
+
         print(f"{video_name} --- Created: {creation_time}, Start TC: {start_tc}, End TC: {end_tc} Duration: {duration:.6f} seconds, FPS: {fps}")
 
         video_data[video] = {
@@ -215,6 +240,7 @@ def main():
             "fps": fps,
             "start_frame": start_frame,
             "end_frame": end_frame,
+            "side": side
         }
 
     # match videos into pairs by creation time
@@ -250,7 +276,12 @@ def main():
                 os.makedirs(egress)
 
         # Clip and merge videos
-        output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}.mp4")
+        options = "_sync"
+        if crop:
+            options += "_crop"
+        if dewarp:
+            options += "_dewarp"
+        output_file = os.path.join(egress, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
         process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda)
 
 if __name__ == "__main__":

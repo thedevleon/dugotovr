@@ -49,6 +49,7 @@ I recommend to watch the following videos to get a better understanding:
 
 ## sync.py
 This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion, although it is a lot slower and also does not allow for stereo calibration -> you'll still need to calibrate in your editing software.
+NOTE: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
 ## dewarp.py
 Dewarps and aligns the dual fisheye footage using an STMap.
