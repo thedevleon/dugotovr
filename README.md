@@ -21,9 +21,9 @@ However, the biggest pain points with two separate cameras is synchronization an
   -> you should be seeing (almost) the full fisheye in the preview, without it being stretched, cut-off or moving when you move the camera.
 
 ## Prerequisites
-- NVidia GPU and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) installed
+- NVidia GPU and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
 - FFmpeg with CUDA support (i.e. ffmpeg-git-full for windows: https://www.gyan.dev/ffmpeg/builds/) or [compiled from source](https://docs.nvidia.com/video-technologies/video-codec-sdk/12.0/ffmpeg-with-nvidia-gpu/index.html)
-- Python via Conda (anaconda, miniconda)
+- Python
 
 Ensure that ffmpeg works with cuda, i.e. make sure this plays one of your gopro clips:
 ```
@@ -48,8 +48,9 @@ I recommend to watch the following videos to get a better understanding:
 # Scripts
 
 ## sync.py
-This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion, although it is a lot slower and also does not allow for stereo calibration -> you'll still need to calibrate in your editing software.
-NOTE: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
+This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), although it is a lot slower than just merging, and also does not allow for stereo calibration. Footage can look "fine" without stereo calibration, but doing it is highly recommended.
+
+**NOTE**: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
 ## dewarp.py
 Dewarps and aligns the dual fisheye footage using an STMap.
@@ -67,13 +68,32 @@ Filming
 - use a clapperboard to make audio and video synchronization much easier
 
 Ingress
-- Dump footage from both cameras into a shared folder
-- Run the `sync.py` script to organize, match, align, trim and combine
+- Dump footage from both cameras into a folder and adjust the path to contain "left" and "right", i.e. by putting them into left and right subfolders, or including "left" or "right" in the filename.
+- Run the `sync.py` script to automatically organize, match, crop, trim, align based on timecode and merge into a single sbs video per pair.
 
-Process (for each clip)
-- Generate STMap (in DaVinci Fusion/Resolve) -> or re-use an STMap if you're confident the cameras have not moved
-- Apply the STMap (dewarping and converting to equirectangular) using TouchDesigner and the Stitch template
+Process (for each combined clip)
+- Generate STMap (in DaVinci Fusion) using the "STMap Gen" Composition, or re-use an earlier STMap if you're confident the cameras have not moved. You might have to make a screenshot of the first frame to use in the "Loader", mp4 doesn't seem to work.
+- Apply the STMap in DaVinci Fusion using "kvrSuperSTMap" if you need to do stereo calibration, or just STMapper if you did the stereo calibration already when creating the STMap
+  
+**NOTES**
+- The GlobalAlign node (part of kvrSuperSTMap) seems to be a bottleneck. To skip it, use the Center property of kvrCropStereo to calibrate and bake it into the STMap. Then you can create a simpler graph without the GlobalAlign to speed up processing with the STMap.
+- If applying the STMap in DaVinci is too slow, you can also use TouchDesigner, see https://kartaverse.github.io/Kartaverse-Docs/#/TouchDesigner.
+- It's best to process all footage in Fusion beforehand, and then using only the processed footage in Resolve. That way you're not re-applying the STMap with every render, and can also generate proxies for the processed footage.
 
+
+## Benchmarks
+Performed on a Ryzen 3700X, 32GB RAM, RTX 2080 Super.
+I would assume that STMap-based workflows will be greatly accelerated with a better GPU.
+
+### sync.py
+- with cuda, without dewarp -> 26 FPS
+- with cuda, with dewarp -> 9 FPS
+
+### DaVinci
+- dewarped -> 4.5 FPS
+- fisheye + GlobalAlign + kvrViewer -> 0.5 FPS
+- fisheye + kvrSuperSTMap -> 0.14 FPS 
+- fisheye + STMapper (with stereo correction baked-in) -> 1 FPS
 
 # Notes
 - Make sure the GoPros are very secure and aligned. If they get loose during your filming, your footage will be ruined. And if they keep moving, you will have to keep calibrating them.

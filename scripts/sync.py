@@ -57,9 +57,17 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
     # hstack_vaapi, hstack_qsv
 
     # alternatives to ss, as it seems not too accurate
-    # put -ss after -i -> didn't seem to work
+    # put -ss after -i -> didn't seem to work at all
     # trim filter: 'trim=start_frame=n' -> couldn't get that to work as expected, only when setstp was also set, which severely reduced the bitrate for some odd reason
     # select filter: 'select=gte(n\,100)' -> not tried yet.
+
+    # v360 options
+    # id_fov, ih_fov, iv_fov, d_fov, h_fov, v_fov, in_stereo, out_stereo
+    # alpha_mask (creates a yuva420p stream, which is not supported by hevc_nvenc)
+    # interp: nearest, linear, cubic, lanczos, spline16, gauss, mitchell (default is linear)
+    # nearest is the fastest, but produces very jagged edges
+    # lanczos produces pixel errors and is relatively slow
+    # cubic is also slow
 
     if cuda:
 
@@ -69,7 +77,7 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
         # hwdownload does not support yuvj420p, so we need to force format=p010le at the scale_cuda filter (GPLog is apparently yuvj420p)
         # v360 only supports yuv420p10le and yuvj420p
         # yuv420p10le == p010le (apparently, see https://www.reddit.com/r/ffmpeg/comments/c1im2i/encode_4k_hdr_pixel_format/)
-        # 
+        
 
 
         filter_complex = ""
