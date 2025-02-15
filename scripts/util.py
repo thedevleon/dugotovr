@@ -49,10 +49,10 @@ def get_metadata(filename):
 
 def match_videos(videos, ingress_path):
     """
-    Matches videos into pairs based on creation time.
+    Matches videos into left/right pairs based on creation time.
 
     :param videos: Dictionary containing videos.
-    :return: List of video pairs.
+    :return: List of left/right video pairs.
     """
 
     # Extract metadata for each video
@@ -86,8 +86,6 @@ def match_videos(videos, ingress_path):
             "frame_rate": frame_rate,
             "side": side
         }
-
-
 
     # Sort videos by creation time
     sorted_videos = sorted(video_data.items(), key=lambda x: x[1]["creation_time"])

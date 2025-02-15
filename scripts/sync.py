@@ -6,7 +6,7 @@ import glob
 
 from util import *
 
-def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda):
+def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda, preview):
     cmd = []
 
     # additional accelerations to look into
@@ -50,8 +50,8 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "cuda",
             "-c:v",
             "hevc_cuvid",
-            "-crop" if crop else "",
-            "0x0x332x332" if crop else "",
+            "-crop" if crop else None,
+            "0x0x332x332" if crop else None,
             "-ss",
             f"{start_sec1:.6f}",
             "-i",
@@ -62,13 +62,15 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "cuda",
             "-c:v",
             "hevc_cuvid",
-            "-crop" if crop else "",
-            "0x0x332x332" if crop else "",
+            "-crop" if crop else None,
+            "0x0x332x332" if crop else None,
             "-ss",
             f"{start_sec2:.6f}",
             "-i",
             video2,
             "-shortest", # stop encoding when the shortest input ends
+            "-t" if preview else None,
+            "15" if preview else None,
             "-filter_complex",
             filter_complex, 
             "-metadata",
@@ -105,6 +107,8 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "-i",
             video2,
             "-shortest", # stop encoding when the shortest input ends
+            "-t" if preview else None,
+            "15" if preview else None,
             "-filter_complex",
             filter_complex,
             "-metadata",
@@ -117,6 +121,9 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "18", # default is 28
             output_file
         ]
+
+        # remove all None values from the list
+    cmd = list(filter(None, cmd))
 
     print(" ".join(cmd))
 
@@ -136,6 +143,7 @@ def main():
     parser.add_argument("-o", "--organize", help="create a folder structure of year-mm-dd/ at the egress", action="store_true", default=True)
     parser.add_argument("-c", "--crop", help="crop the 8:7 video to 1:1 before merging", action="store_true", default=True)
     parser.add_argument("-d", "--dewarp", help="dewarp the fisheye video to VR180", action="store_true", default=False)
+    parser.add_argument("-p", "--preview", help="generate only a preview (15s)", action="store_true", default=False)
     parser.add_argument("--cuda", help="use CUDA accelerated operations", action="store_true", default=True)
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
 
@@ -151,6 +159,7 @@ def main():
     crop = args.crop
     dewarp = args.dewarp
     cuda = args.cuda
+    preview = args.preview
 
     # check if the ingress directory exists
     if not os.path.exists(ingress):
@@ -219,8 +228,10 @@ def main():
             options += "_crop"
         if dewarp:
             options += "_dewarp"
+        if preview:
+            options += "_preview"
         output_file = os.path.join(egress_full, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
-        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda)
+        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda, preview)
 
 if __name__ == "__main__":
     main()
