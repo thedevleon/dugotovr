@@ -1,6 +1,9 @@
 import subprocess
 import json
 import sys
+from timecode import Timecode
+from datetime import datetime
+from datetime import timedelta
 
 def get_ffprobe_data(filename):
     """
@@ -138,7 +141,8 @@ def get_frame_rate(data):
             r_frame_rate = stream.get("r_frame_rate", "30/1")
             try:
                 num, den = map(int, r_frame_rate.split("/"))
-                return num / den
+                fps = num / den
+                return '{:.2f}'.format(fps)
             except:
                 print(
                     f"Invalid r_frame_rate format: {r_frame_rate}. Defaulting to 29.97 fps."
@@ -177,3 +181,78 @@ def get_metadata(filename):
     fps = get_frame_rate(data)
 
     return creation_time, tc, duration, fps
+
+def match_videos(videos, ingress_path):
+    """
+    Matches videos into pairs based on creation time.
+
+    :param videos: Dictionary containing videos.
+    :return: List of video pairs.
+    """
+
+    # Extract metadata for each video
+    video_data = {}
+
+    print(f"Found {len(videos)} video(s) in {ingress_path}:")
+
+    for video in videos:
+        creation_time, start_tc, duration, fps = get_metadata(video)
+        start_timecode = Timecode(fps, start_tc)
+
+        # Extract video name from path after ingress
+        video_name = video.replace(ingress_path, "")
+
+        # check if left or right is part of the video path
+        side = ""
+        if not "left" in video_name and not "right" in video_name:
+            print(f"Skipping {video_name} as it is not clear if it is the right or the left eye. Please include 'left' or 'right' in the path or filename.")
+            continue
+        else: 
+            if "left" in video_name:
+                side = "left"
+            elif "right" in video_name:
+                side = "right"
+
+        print(f"{video_name} --- Created: {creation_time}, Start TC: {start_timecode}, Duration: {duration:.6f} seconds, FPS: {fps}")
+
+        video_data[video] = {
+            "creation_time": datetime.fromisoformat(creation_time),
+            "start_timecode": start_timecode,
+            "fps": fps,
+            "side": side
+        }
+
+
+
+    # Sort videos by creation time
+    sorted_videos = sorted(video_data.items(), key=lambda x: x[1]["creation_time"])
+    video_pairs = []
+
+    # calculate the time difference between each video, skip videos that are too far apart
+    # otherwise, match videos into pairs
+    for i in range(1, len(sorted_videos)):
+        video1 = sorted_videos[i - 1]
+        video2 = sorted_videos[i]
+        time_diff = video2[1]["creation_time"] - video1[1]["creation_time"]
+        if time_diff > timedelta(seconds=5): # Skip videos that are more than 5 seconds apart
+            print(
+                f"Skipping {video1[0]} and {video2[0]} pair due to large time difference: {time_diff}"
+            )
+        elif video1[1]["fps"] != video2[1]["fps"]: # Skip videos with different frame rates
+            print(
+                f"Skipping {video1[0]} and {video2[0]} pair due to different frame rates: {video1[1]['fps']} vs {video2[1]['fps']}"
+            )
+        else:
+
+            # Check that the videos are left and right sides
+            if video1[1]["side"] == video2[1]["side"]:
+                print(f"Skipping {video1[0]} and {video2[0]} pair as they are both {video1[1]['side']} sides.")
+                continue
+
+            # make sure that the first video is left and the second video is right, otherwise swap them
+            if video1[1]["side"] == "right":
+                video1, video2 = video2, video1
+
+            video_pairs.append((video1, video2))
+
+    return video_pairs

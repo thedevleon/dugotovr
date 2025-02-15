@@ -3,52 +3,8 @@ import os
 import sys
 import argparse
 import glob
-from datetime import datetime
-from datetime import timedelta
-from timecode import Timecode
 
 from util import *
-
-def match_videos(video_data):
-    """
-    Matches videos into pairs based on creation time.
-
-    :param video_data: Dictionary containing video metadata.
-    :return: List of video pairs.
-    """
-    # Sort videos by creation time
-    sorted_videos = sorted(video_data.items(), key=lambda x: x[1]["creation_time"])
-    video_pairs = []
-
-    # calculate the time difference between each video, skip videos that are too far apart
-    # otherwise, match videos into pairs
-    for i in range(1, len(sorted_videos)):
-        video1 = sorted_videos[i - 1]
-        video2 = sorted_videos[i]
-        time_diff = video2[1]["creation_time"] - video1[1]["creation_time"]
-        if time_diff > timedelta(seconds=5): # Skip videos that are more than 5 seconds apart
-            print(
-                f"Skipping {video1[0]} and {video2[0]} pair due to large time difference: {time_diff}"
-            )
-        elif video1[1]["fps"] != video2[1]["fps"]: # Skip videos with different frame rates
-            print(
-                f"Skipping {video1[0]} and {video2[0]} pair due to different frame rates: {video1[1]['fps']} vs {video2[1]['fps']}"
-            )
-        else:
-
-            # Check that the videos are left and right sides
-            if video1[1]["side"] == video2[1]["side"]:
-                print(f"Skipping {video1[0]} and {video2[0]} pair as they are both {video1[1]['side']} sides.")
-                continue
-
-            # make sure that the first video is left and the second video is right, otherwise swap them
-            if video1[1]["side"] == "right":
-                video1, video2 = video2, video1
-
-            video_pairs.append((video1, video2))
-
-    return video_pairs
-
 
 def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda):
     cmd = []
@@ -77,8 +33,6 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
         # hwdownload does not support yuvj420p, so we need to force format=p010le at the scale_cuda filter (GPLog is apparently yuvj420p)
         # v360 only supports yuv420p10le and yuvj420p
         # yuv420p10le == p010le (apparently, see https://www.reddit.com/r/ffmpeg/comments/c1im2i/encode_4k_hdr_pixel_format/)
-        
-
 
         filter_complex = ""
         if crop and dewarp: # around 8.5 FPS
@@ -215,40 +169,7 @@ def main():
         print("Please provide at least 2 video files for synchronization.")
         sys.exit(1)
 
-    # Extract metadata for each video
-    video_data = {}
-
-    print(f"Found {len(videos)} video(s) in the ingress directory:")
-
-    for video in videos:
-        creation_time, start_tc, duration, fps = get_metadata(video)
-        start_timecode = Timecode('29.97', start_tc) # hardcoded for now, need to extract from video metadata (and round correctly)
-
-        # Extract video name from path after ingress
-        video_name = video.replace(ingress, "")
-
-        # check if left or right is part of the video path
-        side = ""
-        if not "left" in video_name and not "right" in video_name:
-            print(f"Skipping {video_name} as it is not clear if it is the right or the left eye. Please include 'left' or 'right' in the path or filename.")
-            continue
-        else: 
-            if "left" in video_name:
-                side = "left"
-            elif "right" in video_name:
-                side = "right"
-
-        print(f"{video_name} --- Created: {creation_time}, Start TC: {start_timecode}, Duration: {duration:.6f} seconds, FPS: {fps}")
-
-        video_data[video] = {
-            "creation_time": datetime.fromisoformat(creation_time),
-            "start_timecode": start_timecode,
-            "fps": fps,
-            "side": side
-        }
-
-    # match videos into pairs by creation time
-    video_pairs = match_videos(video_data)
+    video_pairs = match_videos(videos, ingress)
 
     print(f"Found {len(video_pairs)} pair(s) of videos for synchronization.")
 

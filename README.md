@@ -48,13 +48,13 @@ I recommend to watch the following videos to get a better understanding:
 # Scripts
 
 ## sync.py
-This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), although it is a lot slower than just merging, and also does not allow for stereo calibration. Footage can look "fine" without stereo calibration, but doing it is highly recommended.
+This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), although it is a lot slower than just merging, and also does not allow for stereo calibration (yet). Footage can look "fine" without stereo calibration, but doing it is highly recommended.
 
 **NOTE**: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
-## dewarp.py
-Dewarps and aligns the dual fisheye footage using an STMap.
-Multiple options for implementation: ffmpeg + remap (CPU only), ffmpeg + v360 (CPU only), or gstreamer (either gst-nvdewarper or gst-nvivafilter + cv::cuda::remap)
+## calibrate.py
+// TODO
+This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration.
 
 # The Setup™️
 2x GoPro Hero 13, FeiyuTech Scorp-C, SIRUI AM-404FL, Zoom H2essential, Movo SMM5-B Shock Mount, a 3D-printed bracket to hold both GoPros securely
@@ -62,7 +62,7 @@ Multiple options for implementation: ffmpeg + remap (CPU only), ffmpeg + v360 (C
 # The Workflow™️
 
 Filming
-- sync timecode and match settings (iso, shutter, etc) via QRControl
+- **sync timecode** and match settings (iso, shutter, etc) via QRControl before EVERY SHOT -> the timecode drifts too much too quickly otherwise
 - start recording on audio recorder
 - start recording on both GoPros simultaneously via "The Remote" or an app like [GoPro Remote](https://play.google.com/store/apps/details?id=uk.co.purplelabs.gopro_remote)
 - use a clapperboard to make audio and video synchronization much easier
