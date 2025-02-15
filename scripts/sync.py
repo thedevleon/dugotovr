@@ -132,9 +132,9 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
 
         filter_complex = ""
         if crop and dewarp:
-            filter_complex = "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
+            filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
         if crop and not dewarp:
-            filter_complex = "[0:v] crop=4648:4648 [l] ; [1:v] crop=4648:4648 [r] ; [l][r] hstack=inputs=2 [out]"
+            filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]"
         if not crop and dewarp:
             filter_complex = "[l][r] hstack=inputs=2; v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
         if not crop and not dewarp:
@@ -218,6 +218,8 @@ def main():
     # Extract metadata for each video
     video_data = {}
 
+    print(f"Found {len(videos)} video(s) in the ingress directory:")
+
     for video in videos:
         creation_time, start_tc, duration, fps = get_metadata(video)
         start_timecode = Timecode('29.97', start_tc) # hardcoded for now, need to extract from video metadata (and round correctly)
@@ -256,6 +258,8 @@ def main():
         # Determine overlapping timecode interval
         (video1, data1), (video2, data2) = video_pair
 
+        print(f"Processing video pair: {video1} and {video2}")
+
         start_tc1 = data1["start_timecode"]
         start_tc2 = data2["start_timecode"]
         start_sec1 = 0.0
@@ -265,15 +269,20 @@ def main():
         if start_tc1 > start_tc2:
             start_difference = start_tc1 - start_tc2
             start_sec2 = start_difference.to_realtime(True)
-        else:
+        elif start_tc2 > start_tc1:
             start_difference = start_tc2 - start_tc1
             start_sec1 = start_difference.to_realtime(True)
-
-        # relative start frame
-        print(f"Start frame difference: {start_difference.frames} frames, {start_difference.to_realtime(True)} sec, tc: {start_difference}")
+        else:
+            start_difference = Timecode('29.97', 0)
 
         # for metadata
         clip_start_tc = max(start_tc1, start_tc2)
+
+        if start_difference.frames > 1:
+            # relative start frame
+            print(f"Start frame difference: {start_difference.frames} frames, {start_difference.to_realtime(True)} sec, tc: {start_difference}")
+        else:
+            print(f"⭐ You got a perfect match! tc: {clip_start_tc} ⭐")
 
         if organize:
             # Create a folder structure based on creation time

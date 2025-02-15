@@ -141,97 +141,11 @@ def get_frame_rate(data):
                 return num / den
             except:
                 print(
-                    f"Invalid r_frame_rate format: {r_frame_rate}. Defaulting to 30 fps."
+                    f"Invalid r_frame_rate format: {r_frame_rate}. Defaulting to 29.97 fps."
                 )
-                return 30.0
-    print("No video stream found to determine frame rate. Defaulting to 30 fps.")
-    return 30.0
-
-
-def timecode_to_frames(tc, fps):
-    """
-    Converts a timecode string to total frames.
-
-    :param tc: Timecode string in format "HH:MM:SS;FF" or "HH:MM:SS.FF"
-    :param fps: Frames per second as a float.
-    :return: Total number of frames as integer.
-    """
-    try:
-        if ";" in tc:
-            time_part, frame_part = tc.strip().split(";")
-        elif "." in tc:
-            time_part, frame_part = tc.strip().split(".")
-        else:
-            print(f"Unsupported timecode format: {tc}")
-            sys.exit(1)
-
-        h, m, s = map(int, time_part.split(":"))
-        f = int(frame_part)
-        total_seconds = h * 3600 + m * 60 + s
-        total_frames = int(total_seconds * fps) + f
-        return total_frames
-    except ValueError:
-        print(f"Invalid timecode format: {tc}")
-        sys.exit(1)
-
-
-def frames_to_timecode(total_frames, fps):
-    """
-    Converts total frames back to a timecode string.
-
-    :param total_frames: Total number of frames as integer.
-    :param fps: Frames per second as a float.
-    :return: Timecode string in format "HH:MM:SS;FF"
-    """
-    h = int(total_frames // (fps * 3600))
-    remaining = total_frames - (h * fps * 3600)
-    m = int(remaining // (fps * 60))
-    remaining = remaining - (m * fps * 60)
-    s = int(remaining // fps)
-    f = int(remaining - (s * fps)) + 1 # needed?
-
-    # Handle cases where frame count exceeds fps
-    if f >= int(fps):
-        f = 0
-        s += 1
-        if s >= 60:
-            s = 0
-            m += 1
-            if m >= 60:
-                m = 0
-                h += 1
-
-    return f"{h:02}:{m:02}:{s:02};{f:02}"
-
-
-def seconds_to_timecode(seconds, fps):
-    """
-    Converts total seconds to a timecode string in format "HH:MM:SS;FF"
-
-    :param seconds: Total seconds as a float.
-    :param fps: Frames per second as a float.
-    :return: Timecode string in format "HH:MM:SS;FF"
-    """
-    h = int(seconds // 3600)
-    seconds %= 3600
-    m = int(seconds // 60)
-    seconds %= 60
-    s = int(seconds)
-    f = int((seconds - s) * fps)
-
-    # Handle cases where frame count exceeds fps
-    if f >= int(fps):
-        f = 0
-        s += 1
-        if s >= 60:
-            s = 0
-            m += 1
-            if m >= 60:
-                m = 0
-                h += 1
-
-    return f"{h:02}:{m:02}:{s:02};{f:02}"
-
+                return 29.97
+    print("No video stream found to determine frame rate. Defaulting to 29.97 fps.")
+    return 29.97
 
 def get_metadata(filename):
     """
