@@ -201,11 +201,11 @@ def main():
             with open(calibration_file1, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame1 = calibration["start_frame"]
-                start_sec1 = Timecode('29.97', frames=start_frame1).to_realtime(True) # will be obsolete with ffmpeg bindings    
+                start_sec1 = Timecode('29.97', frames=start_frame1+1).to_realtime(True) # will be obsolete with ffmpeg bindings    
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
-                start_sec2 = Timecode('29.97', frames=start_frame2).to_realtime(True) # will be obsolete with ffmpeg bindings
+                start_sec2 = Timecode('29.97', frames=start_frame2+1).to_realtime(True) # will be obsolete with ffmpeg bindings
 
             print(f"Start times from calibration files: left: {start_frame1} - {start_sec1:.6f} and right: {start_frame2} - {start_sec2:.6f}")
 
