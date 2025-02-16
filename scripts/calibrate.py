@@ -26,12 +26,12 @@ def extract_frames(video, num_frames):
     return video
 
 # Further improvements:
-# allow to seek in the video (i.e. not align on the first frame, but somewhere later in the video)
-# fix color mismatch between gplog and normal footage
+# add support for rotation
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("ingress", help="the path to ingress from")
+    parser.add_argument("-s", "--skip", help="skip already calibrated files", action="store_true")
 
     if len(sys.argv) < 1:
         parser.print_help()
@@ -40,6 +40,7 @@ def main():
     args = parser.parse_args()
 
     ingress = args.ingress
+    skip = args.skip
 
     # check if the ingress directory exists
     if not os.path.exists(ingress):
@@ -61,6 +62,8 @@ def main():
     x_offset = 0
     y_offset = 0
 
+    frames_to_extract = 60
+
     for video_pair in video_pairs:
         (video1, data1), (video2, data2) = video_pair
 
@@ -68,8 +71,11 @@ def main():
 
         start_tc1 = data1["start_timecode"]
         start_tc2 = data2["start_timecode"]
+        seek = 0
         start_frame1 = 0
+        start_frame1_orig = 0
         start_frame2 = 0
+        start_frame2_orig = 0
         anaglyph = True
         calibration_changed = False
 
@@ -86,23 +92,30 @@ def main():
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
+
+            if skip:
+                print("Skipping calibration for this video pair.")
+                continue
         else:
+            calibration_changed = True # calibration data is missing
             if start_tc1 > start_tc2:
                 start_difference = start_tc1 - start_tc2
-                start_frame1 = start_difference.frames
+                start_frame2 = start_difference.frames
+                start_frame2_orig = start_difference.frames
             elif start_tc2 > start_tc1:
                 start_difference = start_tc2 - start_tc1
-                start_frame2 = start_difference.frames
+                start_frame1 = start_difference.frames
+                start_frame1_orig = start_difference.frames
             
         # extract the first 30 frames of each video
-        frames1 = extract_frames(video1, 30)
-        frames2 = extract_frames(video2, 30)
-
-        print(f"Start frame left: {start_frame1}, right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
+        frames1 = extract_frames(video1, frames_to_extract+1)
+        frames2 = extract_frames(video2, frames_to_extract+1)
         
         while True:
-            frame1 = np.copy(frames1[start_frame1])
-            frame2 = np.copy(frames2[start_frame2])
+            print(f"Seek: {seek}, start frame left: {start_frame1}, start frame right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
+
+            frame1 = np.copy(frames1[seek + start_frame1])
+            frame2 = np.copy(frames2[seek + start_frame2])
             
             # offset the frames in x and y and split the difference between the two frames
             frame1 = np.roll(frame1, x_offset, axis=1)
@@ -110,16 +123,41 @@ def main():
             frame1 = np.roll(frame1, y_offset, axis=0)
             frame2 = np.roll(frame2, -y_offset, axis=0)
 
+            # fix color issues
+            frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
+            frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
+
+
             if anaglyph:
                 preview = color_anaglyph(frame1, frame2)
             else:
                 preview = np.hstack((frame1, frame2))
+
+            # add text for debugging to frame1
+            # top left: seek, left start, right start
+            # top right: x_offset, y_offset
+            # top bottom: legend for controls
+            font_scale = 2
+            font_thickness = 3
+            color = (255, 255, 255)
+            top_left_text_1 = f"Seek: {seek}, Left: {start_frame1}, Right: {start_frame2}"
+            top_left_text_2 = f"X: {x_offset}, Y: {y_offset}"
+            bottom_left_text_1 = "WASD: X/Y Offset, N/M: Left Start, J/K: Right Start, I/O: Seek           R: Reset, Space: Toggle Anaglyph, Q: Quit, E: Next"
+
+            # get text size with cv2.getTextSize
+            (_, top_left_text_1_height), _ = cv2.getTextSize(top_left_text_1, cv2.FONT_HERSHEY_DUPLEX, font_scale, font_thickness)
+            (_, top_left_text_2_height), _ = cv2.getTextSize(top_left_text_2, cv2.FONT_HERSHEY_DUPLEX, font_scale, font_thickness)
+            cv2.putText(preview, top_left_text_1, (10, 10 + top_left_text_1_height), cv2.FONT_HERSHEY_DUPLEX, font_scale, color, font_thickness, cv2.LINE_AA)
+            cv2.putText(preview, top_left_text_2, (10, 10 + top_left_text_1_height + 10 + top_left_text_2_height), cv2.FONT_HERSHEY_DUPLEX, font_scale, color, font_thickness, cv2.LINE_AA)
+            cv2.putText(preview, bottom_left_text_1, (10, preview.shape[0] - 10), cv2.FONT_HERSHEY_DUPLEX, font_scale, color, font_thickness, cv2.LINE_AA)
 
             cv2.namedWindow("Calibration", cv2.WINDOW_NORMAL) # allows the window to be resized
             cv2.imshow("Calibration", preview)
             key = cv2.waitKey(0)
 
             if key == ord('q'):
+                return
+            elif key == ord('e'):
                 break
             elif key == ord('w'):
                 y_offset -= 1
@@ -133,26 +171,37 @@ def main():
             elif key == ord('d'):
                 x_offset += 1
                 calibration_changed = True
-            elif key == ord('j'):
+            elif key == ord('n'):
                 start_frame1 -= 1
                 calibration_changed = True
-            elif key == ord('k'):
+            elif key == ord('m'):
                 start_frame1 += 1
                 calibration_changed = True
-            elif key == ord('n'):
+            elif key == ord('j'):
                 start_frame2 -= 1
                 calibration_changed = True
-            elif key == ord('m'):
+            elif key == ord('k'):
                 start_frame2 += 1
                 calibration_changed = True
             elif key == ord(' '):
                 anaglyph = not anaglyph
+            elif key == ord('i'):
+                seek -= 1
+            elif key == ord('o'):
+                seek += 1
+            elif key == ord('r'):
+                seek = 0
+                x_offset = 0
+                y_offset = 0
+                start_frame1 = start_frame1_orig
+                start_frame2 = start_frame2_orig
+                calibration_changed = True
 
-            start_frame1 = max(0, start_frame1)
-            start_frame2 = max(0, start_frame2)
-
-            print(f"Start frame left: {start_frame1}, right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
-
+            start_frame1 = min(max(0, start_frame1), frames_to_extract)
+            start_frame2 = min(max(0, start_frame2), frames_to_extract)
+            seek = min(max(0, seek), frames_to_extract) # clamp between 0 and frames_to_extract
+            seek = min(min(frames_to_extract - start_frame1, frames_to_extract - start_frame2), seek) # make sure we don't seek too far
+            seek = max(0, seek) # and make sure we don't seek into negative frames
         cv2.destroyAllWindows()
 
         if calibration_changed:

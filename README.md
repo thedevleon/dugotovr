@@ -53,22 +53,23 @@ This script will look through a folder of footage and find matching clips (based
 **NOTE**: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
 ## calibrate.py
-// TODO
-This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration.
+This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration. The calibration will be stored in a yaml file next to the mp4, and used by sync.py automatically if it is present.
 
 # The Setup™️
 2x GoPro Hero 13, FeiyuTech Scorp-C, SIRUI AM-404FL, Zoom H2essential, Movo SMM5-B Shock Mount, a 3D-printed bracket to hold both GoPros securely
 
 # The Workflow™️
 
-Filming
-- **sync timecode** and match settings (iso, shutter, etc) via QRControl before EVERY SHOT -> the timecode drifts too much too quickly otherwise
+Filming (for each recording)
+- make sure to match settings (iso, shutter, white balance, etc...)
+- **sync timecode via QRControl** -> If you didn't, you can manually adjust with the calibrate script, but it will be annoying.
 - start recording on audio recorder
 - start recording on both GoPros simultaneously via "The Remote" or an app like [GoPro Remote](https://play.google.com/store/apps/details?id=uk.co.purplelabs.gopro_remote)
 - use a clapperboard to make audio and video synchronization much easier
 
 Ingress
 - Dump footage from both cameras into a folder and adjust the path to contain "left" and "right", i.e. by putting them into left and right subfolders, or including "left" or "right" in the filename.
+- Run the `calibrate.py` script for timecode alignment and stereo calibration (can be skipped)
 - Run the `sync.py` script to automatically organize, match, crop, trim, align based on timecode and merge into a single sbs video per pair.
 
 Process (for each combined clip)
