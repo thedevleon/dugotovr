@@ -61,8 +61,10 @@ def main():
     # keep offset across videos
     x_offset = 0
     y_offset = 0
+    rotation_global = 0.0 # to correct horizon on both
+    rotation_local = 0.0 # to correct rotation against each other
 
-    frames_to_extract = 60
+    frames_to_extract = 30 # 30 should be enough
 
     for video_pair in video_pairs:
         (video1, data1), (video2, data2) = video_pair
@@ -77,6 +79,7 @@ def main():
         start_frame2 = 0
         start_frame2_orig = 0
         anaglyph = True
+        lines = True
         calibration_changed = False
 
         calibration_file1 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
@@ -89,6 +92,8 @@ def main():
                 start_frame1 = calibration["start_frame"]
                 x_offset = calibration["x_offset"]
                 y_offset = calibration["y_offset"]
+                rotation_global = calibration["rotation_global"] if "rotation_global" in calibration else rotation_global # backwards compatibility
+                rotation_local = calibration["rotation_local"] if "rotation_local" in calibration else rotation_local # backwards compatibility
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
@@ -112,7 +117,7 @@ def main():
         frames2 = extract_frames(video2, frames_to_extract+1)
         
         while True:
-            print(f"Seek: {seek}, start frame left: {start_frame1}, start frame right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
+            print(f"Seek: {seek}, start frame left: {start_frame1}, start frame right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}, rotation (local): {rotation_local}, rotation (global): {rotation_global}")
 
             frame1 = np.copy(frames1[seek + start_frame1])
             frame2 = np.copy(frames2[seek + start_frame2])
@@ -123,10 +128,24 @@ def main():
             frame1 = np.roll(frame1, y_offset, axis=0)
             frame2 = np.roll(frame2, -y_offset, axis=0)
 
+            # rotate the frames
+            frame1 = cv2.warpAffine(frame1, cv2.getRotationMatrix2D((2048, 2048), rotation_global + rotation_local, 1), (4096, 4096))
+            frame2 = cv2.warpAffine(frame2, cv2.getRotationMatrix2D((2048, 2048), rotation_global - rotation_local, 1), (4096, 4096))
+
+            # add a horizontal grid to the frames
+            if lines:
+                thickness = 6
+                color = (255, 255, 255)
+                cv2.line(frame1, (0, 2048), (4096, 2048), color, thickness)
+                cv2.line(frame2, (0, 2048), (4096, 2048), color, thickness)
+                cv2.line(frame1, (0, 1024), (4096, 1024), color, thickness)
+                cv2.line(frame2, (0, 1024), (4096, 1024), color, thickness)
+                cv2.line(frame1, (0, 3072), (4096, 3072), color, thickness)
+                cv2.line(frame2, (0, 3072), (4096, 3072), color, thickness)
+
             # fix color issues
             frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
             frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
-
 
             if anaglyph:
                 preview = color_anaglyph(frame1, frame2)
@@ -141,8 +160,8 @@ def main():
             font_thickness = 3
             color = (255, 255, 255)
             top_left_text_1 = f"Seek: {seek}, Left: {start_frame1}, Right: {start_frame2}"
-            top_left_text_2 = f"X: {x_offset}, Y: {y_offset}"
-            bottom_left_text_1 = "WASD: X/Y Offset, N/M: Left Start, J/K: Right Start, I/O: Seek           R: Reset, Space: Toggle Anaglyph, Q: Quit, E: Next"
+            top_left_text_2 = f"X: {x_offset}, Y: {y_offset}, Rot (l): {rotation_local:.2f}, Rot (g): {rotation_global:.2f}"
+            bottom_left_text_1 = "WASD: X/Y Offset, N/M: Left, J/K: Right, I/O: Seek, ,/.: Rot (l), -/+: Rot (g), R: Reset, Space: Anaglyph, Q: Quit, E: Next"
 
             # get text size with cv2.getTextSize
             (_, top_left_text_1_height), _ = cv2.getTextSize(top_left_text_1, cv2.FONT_HERSHEY_DUPLEX, font_scale, font_thickness)
@@ -183,8 +202,22 @@ def main():
             elif key == ord('k'):
                 start_frame2 += 1
                 calibration_changed = True
+            elif key == ord('-'):
+                rotation_global += 0.1
+                calibration_changed = True
+            elif key == ord('='):
+                rotation_global -= 0.1
+                calibration_changed = True
+            elif key == ord(','):
+                rotation_local -= 0.1
+                calibration_changed = True
+            elif key == ord('.'):
+                rotation_local += 0.1
+                calibration_changed = True
             elif key == ord(' '):
                 anaglyph = not anaglyph
+            elif key == ord('h'):
+                lines = not lines
             elif key == ord('i'):
                 seek -= 1
             elif key == ord('o'):
@@ -212,7 +245,9 @@ def main():
                 content = {
                     "start_frame": start_frame1,
                     "x_offset": x_offset,
-                    "y_offset": y_offset
+                    "y_offset": y_offset,
+                    "rotation_global": rotation_global,
+                    "rotation_local": rotation_local
                 }
                 yaml.dump(content, f)
 
@@ -220,7 +255,9 @@ def main():
                 content = {
                     "start_frame": start_frame2,
                     "x_offset": -x_offset,
-                    "y_offset": -y_offset
+                    "y_offset": -y_offset,
+                    "rotation_global": rotation_global,
+                    "rotation_local": -rotation_local
                 }
                 yaml.dump(content, f)
 
