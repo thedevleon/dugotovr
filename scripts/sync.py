@@ -7,7 +7,7 @@ import yaml
 
 from util import *
 
-def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop, dewarp, cuda, preview):
+def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, dewarp, cuda, preview):
     cmd = []
 
     # additional accelerations to look into
@@ -26,6 +26,10 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
     # lanczos produces pixel errors and is relatively slow
     # cubic is also slow
 
+    # gopro file format wierdness
+    # gp-log: yuvj420p
+    # normal: yuv420p10le
+
     if cuda:
 
         # Unfortunate limitations of ffmpeg with CUDA acceleration
@@ -36,12 +40,10 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
         # yuv420p10le == p010le (apparently, see https://www.reddit.com/r/ffmpeg/comments/c1im2i/encode_4k_hdr_pixel_format/)
 
         filter_complex = ""
-        if crop and dewarp: # around 8.5 FPS
+        if dewarp: # around 8.5 FPS
             filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss][rss] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
-        if crop and not dewarp: # around 23 FPS
+        if not dewarp: # around 23 FPS
             filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda"
-        if not crop:
-            sys.exit("CUDA acceleration requires cropping, as nvenc only supports up to a max width of 8192.")
 
         cmd = [
             "ffmpeg",
@@ -51,8 +53,8 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "cuda",
             "-c:v",
             "hevc_cuvid",
-            "-crop" if crop else None,
-            "0x0x332x332" if crop else None,
+            "-crop",
+            "0x0x332x332",
             "-ss",
             f"{start_sec1:.6f}",
             "-i",
@@ -63,8 +65,8 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
             "cuda",
             "-c:v",
             "hevc_cuvid",
-            "-crop" if crop else None,
-            "0x0x332x332" if crop else None,
+            "-crop",
+            "0x0x332x332",
             "-ss",
             f"{start_sec2:.6f}",
             "-i",
@@ -88,14 +90,10 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
     else:
 
         filter_complex = ""
-        if crop and dewarp:
+        if dewarp:
             filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
-        if crop and not dewarp:
+        if not dewarp:
             filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]"
-        if not crop and dewarp:
-            filter_complex = "[l][r] hstack=inputs=2; v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
-        if not crop and not dewarp:
-            filter_complex = "[l][r] hstack=inputs=2"
 
         cmd = [
             "ffmpeg",
@@ -141,7 +139,6 @@ def main():
     parser.add_argument("ingress", help="the path to ingress from")
     parser.add_argument("egress", help="the path to egress to")
     parser.add_argument("-o", "--organize", help="create a folder structure of year-mm-dd/ at the egress", action="store_true", default=True)
-    parser.add_argument("-c", "--crop", help="crop the 8:7 video to 1:1 before merging", action="store_true", default=True)
     parser.add_argument("-d", "--dewarp", help="dewarp the fisheye video to VR180", action="store_true", default=False)
     parser.add_argument("-p", "--preview", help="generate only a preview (15s)", action="store_true", default=False)
     parser.add_argument("--cuda", help="use CUDA accelerated operations", action="store_true", default=True)
@@ -156,7 +153,6 @@ def main():
     ingress = args.ingress
     egress = args.egress
     organize = args.organize
-    crop = args.crop
     dewarp = args.dewarp
     cuda = args.cuda
     preview = args.preview
@@ -205,13 +201,13 @@ def main():
             with open(calibration_file1, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame1 = calibration["start_frame"]
-                start_sec1 = Timecode('29.97', start_frame1).to_realtime(True) # will be obsolete with ffmpeg bindings    
+                start_sec1 = Timecode('29.97', frames=start_frame1).to_realtime(True) # will be obsolete with ffmpeg bindings    
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
-                start_sec2 = Timecode('29.97', start_frame2).to_realtime(True) # will be obsolete with ffmpeg bindings
+                start_sec2 = Timecode('29.97', frames=start_frame2).to_realtime(True) # will be obsolete with ffmpeg bindings
 
-            print(f"Start times from calibration files: left: {start_sec1:.6f} and right: {start_sec2:.6f}")
+            print(f"Start times from calibration files: left: {start_frame1} - {start_sec1:.6f} and right: {start_frame2} - {start_sec2:.6f}")
 
         else:
             # Determine the overlapping interval
@@ -239,15 +235,13 @@ def main():
                 os.makedirs(egress_full)
 
         # Clip and merge videos
-        options = "_sync"
-        if crop:
-            options += "_crop"
+        options = "_sync_crop"
         if dewarp:
             options += "_dewarp"
         if preview:
             options += "_preview"
         output_file = os.path.join(egress_full, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
-        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, crop, dewarp, cuda, preview)
+        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, dewarp, cuda, preview)
 
 if __name__ == "__main__":
     main()
