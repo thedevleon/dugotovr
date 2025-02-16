@@ -4,10 +4,11 @@ import sys
 import argparse
 import glob
 import yaml
+import math
 
 from util import *
 
-def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, dewarp, cuda, preview):
+def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, preview):
     cmd = []
 
     # additional accelerations to look into
@@ -56,7 +57,7 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, dewa
             "-crop",
             "0x0x332x332",
             "-ss",
-            f"{start_sec1:.6f}",
+            f"{calibration["start_sec1"]:.6f}",
             "-i",
             video1,
             "-hwaccel",
@@ -68,7 +69,7 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, dewa
             "-crop",
             "0x0x332x332",
             "-ss",
-            f"{start_sec2:.6f}",
+            f"{calibration["start_sec2"]:.6f}",
             "-i",
             video2,
             "-shortest", # stop encoding when the shortest input ends
@@ -98,11 +99,11 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, dewa
         cmd = [
             "ffmpeg",
             "-ss",
-            f"{start_sec1:.6f}",
+            f"{calibration["start_sec1"]:.6f}",
             "-i",
             video1,
             "-ss",
-            f"{start_sec2:.6f}",
+            f"{calibration["start_sec2"]:.6f}",
             "-i",
             video2,
             "-shortest", # stop encoding when the shortest input ends
@@ -188,8 +189,20 @@ def main():
 
         start_tc1 = data1["start_timecode"]
         start_tc2 = data2["start_timecode"]
-        start_sec1 = 0.0
-        start_sec2 = 0.0
+        calibration = {
+            "start_frame1": 0,
+            "start_sec1": 0.0,
+            "start_frame2": 0,
+            "start_sec2": 0.0,
+            "offset1_x": 0.0,
+            "offset1_y": 0.0,
+            "offset2_x": 0.0,
+            "offset2_y": 0.0,
+            "rotate_global1": 0.0,
+            "rotate_global2": 0.0,
+            "rotate_local1": 0.0,
+            "rotate_local2": 0.0
+        }
 
         # for metadata only
         clip_start_tc = max(start_tc1, start_tc2)
@@ -199,24 +212,24 @@ def main():
 
         if os.path.exists(calibration_file1) and os.path.exists(calibration_file2):
             with open(calibration_file1, "r") as f:
-                calibration = yaml.safe_load(f)
-                start_frame1 = calibration["start_frame"]
-                start_sec1 = Timecode('29.97', frames=start_frame1+1).to_realtime(True) # will be obsolete with ffmpeg bindings    
+                calibration1 = yaml.safe_load(f)
+                calibration["start_frame1"] = calibration1["start_frame"]
+                calibration["start_sec1"] = Timecode('29.97', frames=calibration["start_frame1"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
             with open(calibration_file2, "r") as f:
-                calibration = yaml.safe_load(f)
-                start_frame2 = calibration["start_frame"]
-                start_sec2 = Timecode('29.97', frames=start_frame2+1).to_realtime(True) # will be obsolete with ffmpeg bindings
+                calibration1 = yaml.safe_load(f)
+                calibration["start_frame2"] = calibration1["start_frame"]
+                calibration["start_sec2"] = Timecode('29.97', frames=calibration["start_frame2"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
 
-            print(f"Start times from calibration files: left: {start_frame1} - {start_sec1:.6f} and right: {start_frame2} - {start_sec2:.6f}")
+            print(f"Start times from calibration files: left: {calibration["start_frame1"]} - {calibration["start_sec1"]:.6f} and right: {calibration["start_frame1"]} - {calibration["start_sec2"]:.6f}")
 
         else:
             # Determine the overlapping interval
             if start_tc1 > start_tc2:
                 start_difference = start_tc1 - start_tc2
-                start_sec2 = start_difference.to_realtime(True)
+                calibration["start_sec2"] = start_difference.to_realtime(True)
             elif start_tc2 > start_tc1:
                 start_difference = start_tc2 - start_tc1
-                start_sec1 = start_difference.to_realtime(True)
+                calibration["start_sec1"] = start_difference.to_realtime(True)
             else:
                 start_difference = Timecode('29.97', 0)
 
@@ -241,7 +254,7 @@ def main():
         if preview:
             options += "_preview"
         output_file = os.path.join(egress_full, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
-        process_videos(video1, video2, start_sec1, start_sec2, output_file, clip_start_tc, dewarp, cuda, preview)
+        process_videos(video1, video2, calibration, output_file, clip_start_tc, dewarp, cuda, preview)
 
 if __name__ == "__main__":
     main()
