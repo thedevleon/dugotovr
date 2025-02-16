@@ -4,25 +4,23 @@ import os
 import glob
 import numpy as np
 import cv2
+import yaml
 
 from util import *
 
 def extract_frames(video, num_frames):
-    probe = ffmpeg.probe(video)
-    video_info = next(s for s in probe['streams'] if s['codec_type'] == 'video')
-    width = int(video_info['width'])
-    height = int(video_info['height'])
-
     out, err = (
         ffmpeg
         .input(video)
         .trim(end_frame=num_frames)
+        .filter('crop', 4648, 4648) # crop to the center of the fisheye
+        .filter('scale', 4096, 4096) # downscale to 4096x4096
         .output('pipe:', format='rawvideo', pix_fmt='rgb24')
         .run(capture_stdout=True)
     )
     video = (
         np.frombuffer(out, np.uint8)
-        .reshape([-1, height, width, 3])
+        .reshape([-1, 4096, 4096, 3])
     )
 
     return video
@@ -30,7 +28,6 @@ def extract_frames(video, num_frames):
 # Further improvements:
 # allow to seek in the video (i.e. not align on the first frame, but somewhere later in the video)
 # fix color mismatch between gplog and normal footage
-# write yaml file with yaml package
 
 def main():
     parser = argparse.ArgumentParser()
@@ -60,6 +57,10 @@ def main():
 
     print(f"Found {len(video_pairs)} pair(s) of videos for calibration.")
 
+    # keep offset across videos
+    x_offset = 0
+    y_offset = 0
+
     for video_pair in video_pairs:
         (video1, data1), (video2, data2) = video_pair
 
@@ -67,23 +68,37 @@ def main():
 
         start_tc1 = data1["start_timecode"]
         start_tc2 = data2["start_timecode"]
-
         start_frame1 = 0
         start_frame2 = 0
-        x_offset = 0
-        y_offset = 0
         anaglyph = True
+        calibration_changed = False
 
-        if start_tc1 > start_tc2:
-            start_difference = start_tc1 - start_tc2
-            start_frame1 = start_difference.frames
-        elif start_tc2 > start_tc1:
-            start_difference = start_tc2 - start_tc1
-            start_frame2 = start_difference.frames
+        calibration_file1 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+        calibration_file2 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+
+        # if the calibration files exist, load the calibration data
+        if os.path.exists(calibration_file1) and os.path.exists(calibration_file2):
+            with open(calibration_file1, "r") as f:
+                calibration = yaml.safe_load(f)
+                start_frame1 = calibration["start_frame"]
+                x_offset = calibration["x_offset"]
+                y_offset = calibration["y_offset"]
+            with open(calibration_file2, "r") as f:
+                calibration = yaml.safe_load(f)
+                start_frame2 = calibration["start_frame"]
+        else:
+            if start_tc1 > start_tc2:
+                start_difference = start_tc1 - start_tc2
+                start_frame1 = start_difference.frames
+            elif start_tc2 > start_tc1:
+                start_difference = start_tc2 - start_tc1
+                start_frame2 = start_difference.frames
             
         # extract the first 30 frames of each video
         frames1 = extract_frames(video1, 30)
         frames2 = extract_frames(video2, 30)
+
+        print(f"Start frame left: {start_frame1}, right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
         
         while True:
             frame1 = np.copy(frames1[start_frame1])
@@ -108,20 +123,28 @@ def main():
                 break
             elif key == ord('w'):
                 y_offset -= 1
+                calibration_changed = True
             elif key == ord('s'):
                 y_offset += 1
+                calibration_changed = True
             elif key == ord('a'):
                 x_offset -= 1
+                calibration_changed = True
             elif key == ord('d'):
                 x_offset += 1
+                calibration_changed = True
             elif key == ord('j'):
                 start_frame1 -= 1
+                calibration_changed = True
             elif key == ord('k'):
                 start_frame1 += 1
+                calibration_changed = True
             elif key == ord('n'):
                 start_frame2 -= 1
+                calibration_changed = True
             elif key == ord('m'):
                 start_frame2 += 1
+                calibration_changed = True
             elif key == ord(' '):
                 anaglyph = not anaglyph
 
@@ -130,16 +153,27 @@ def main():
 
             print(f"Start frame left: {start_frame1}, right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
 
-        # save the start frame and alignment via a simple text file next to the video file
-        with open(f"{os.path.splitext(video1)[0]}.yaml", "w") as f:
-            f.write(f"start_frame: {start_frame1}\n")
-            f.write(f"x_offset: {x_offset}\n")
-            f.write(f"y_offset: {y_offset}\n")
+        cv2.destroyAllWindows()
 
-        with open(f"{os.path.splitext(video2)[0]}.yaml", "w") as f:
-            f.write(f"start_frame: {start_frame2}\n")
-            f.write(f"x_offset: {-x_offset}\n")
-            f.write(f"y_offset: {-y_offset}\n")
+        if calibration_changed:
+            print("Saving calibration data...")
+
+            # save the start frame and alignment via a simple text file next to the video file
+            with open(f"{os.path.splitext(video1)[0]}.yaml", "w") as f:
+                content = {
+                    "start_frame": start_frame1,
+                    "x_offset": x_offset,
+                    "y_offset": y_offset
+                }
+                yaml.dump(content, f)
+
+            with open(f"{os.path.splitext(video2)[0]}.yaml", "w") as f:
+                content = {
+                    "start_frame": start_frame2,
+                    "x_offset": -x_offset,
+                    "y_offset": -y_offset
+                }
+                yaml.dump(content, f)
 
 
 if __name__ == "__main__":
