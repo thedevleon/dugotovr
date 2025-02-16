@@ -3,6 +3,7 @@ from timecode import Timecode
 from datetime import datetime
 from datetime import timedelta
 import ffmpeg
+import numpy as np
 
 def get_metadata(filename):
     """
@@ -119,3 +120,17 @@ def match_videos(videos, ingress_path):
             video_pairs.append((video1, video2))
 
     return video_pairs
+
+
+def color_anaglyph(left, right):
+    out = np.zeros_like(left, dtype=np.uint8)
+    l_r =  left[:,:,2]
+
+    r_g = right[:,:,1]
+    r_b = right[:,:,0]
+
+    out[:,:,2] = l_r
+    out[:,:,1] = r_g
+    out[:,:,0] = r_b
+
+    return out

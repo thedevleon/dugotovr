@@ -17,7 +17,7 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
     # trim filter: 'trim=start_frame=n' -> couldn't get that to work as expected, only when setstp was also set, which severely reduced the bitrate for some odd reason
     # select filter: 'select=gte(n\,100)' -> not tried yet.
 
-    # v360 options
+    # v360 options 
     # id_fov, ih_fov, iv_fov, d_fov, h_fov, v_fov, in_stereo, out_stereo
     # alpha_mask (creates a yuva420p stream, which is not supported by hevc_nvenc)
     # interp: nearest, linear, cubic, lanczos, spline16, gauss, mitchell (default is linear)
@@ -128,15 +128,14 @@ def process_videos(video1, video2, start_sec1, start_sec2, output_file, tc, crop
     print(" ".join(cmd))
 
     try:
-        print(f"Clipping {video1} and {video2} -> {output_file}")
+        print(f"Processing {video1} and {video2} -> {output_file}")
         subprocess.run(cmd, check=True)
-        print(f"Successfully clipped and merged {output_file}\n")
+        print(f"Successfully processed {output_file}\n")
     except subprocess.CalledProcessError as e:
-        print(f"Error clipping and merging {video1} and {video2}: {e.stderr}")
+        print(f"Error processing {video1} and {video2}: {e.stderr}")
         sys.exit(1)
 
 def main():
-
     parser = argparse.ArgumentParser()
     parser.add_argument("ingress", help="the path to ingress from")
     parser.add_argument("egress", help="the path to egress to")
