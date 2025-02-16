@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import glob
+import yaml
 
 from util import *
 
@@ -194,24 +195,40 @@ def main():
         start_sec1 = 0.0
         start_sec2 = 0.0
 
-        # Determine the overlapping interval
-        if start_tc1 > start_tc2:
-            start_difference = start_tc1 - start_tc2
-            start_sec2 = start_difference.to_realtime(True)
-        elif start_tc2 > start_tc1:
-            start_difference = start_tc2 - start_tc1
-            start_sec1 = start_difference.to_realtime(True)
-        else:
-            start_difference = Timecode('29.97', 0)
-
-        # for metadata
+        # for metadata only
         clip_start_tc = max(start_tc1, start_tc2)
 
-        if start_difference.frames > 1:
-            # relative start frame
-            print(f"Start frame difference: {start_difference.frames} frames, {start_difference.to_realtime(True)} sec, tc: {start_difference}")
+        calibration_file1 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+        calibration_file2 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+
+        if os.path.exists(calibration_file1) and os.path.exists(calibration_file2):
+            with open(calibration_file1, "r") as f:
+                calibration = yaml.safe_load(f)
+                start_frame1 = calibration["start_frame"]
+                start_sec1 = Timecode('29.97', start_frame1).to_realtime(True) # will be obsolete with ffmpeg bindings    
+            with open(calibration_file2, "r") as f:
+                calibration = yaml.safe_load(f)
+                start_frame2 = calibration["start_frame"]
+                start_sec2 = Timecode('29.97', start_frame2).to_realtime(True) # will be obsolete with ffmpeg bindings
+
+            print(f"Start times from calibration files: left: {start_sec1:.6f} and right: {start_sec2:.6f}")
+
         else:
-            print(f"⭐ You got a perfect match! tc: {clip_start_tc} ⭐")
+            # Determine the overlapping interval
+            if start_tc1 > start_tc2:
+                start_difference = start_tc1 - start_tc2
+                start_sec2 = start_difference.to_realtime(True)
+            elif start_tc2 > start_tc1:
+                start_difference = start_tc2 - start_tc1
+                start_sec1 = start_difference.to_realtime(True)
+            else:
+                start_difference = Timecode('29.97', 0)
+
+            if start_difference.frames > 1:
+                # relative start frame
+                print(f"Start frame difference: {start_difference.frames} frames, {start_difference.to_realtime(True)} sec, tc: {start_difference}")
+            else:
+                print(f"⭐ You got a perfect match! tc: {clip_start_tc} ⭐")
 
         if organize:
             # Create a folder structure based on creation time

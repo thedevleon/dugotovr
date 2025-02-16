@@ -27,6 +27,10 @@ def extract_frames(video, num_frames):
 
     return video
 
+# Further improvements:
+# allow to seek in the video (i.e. not align on the first frame, but somewhere later in the video)
+# fix color mismatch between gplog and normal footage
+# write yaml file with yaml package
 
 def main():
     parser = argparse.ArgumentParser()
@@ -127,12 +131,12 @@ def main():
             print(f"Start frame left: {start_frame1}, right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}")
 
         # save the start frame and alignment via a simple text file next to the video file
-        with open(f"{os.path.splitext(video1)[0]}.txt", "w") as f:
+        with open(f"{os.path.splitext(video1)[0]}.yaml", "w") as f:
             f.write(f"start_frame: {start_frame1}\n")
             f.write(f"x_offset: {x_offset}\n")
             f.write(f"y_offset: {y_offset}\n")
 
-        with open(f"{os.path.splitext(video2)[0]}.txt", "w") as f:
+        with open(f"{os.path.splitext(video2)[0]}.yaml", "w") as f:
             f.write(f"start_frame: {start_frame2}\n")
             f.write(f"x_offset: {-x_offset}\n")
             f.write(f"y_offset: {-y_offset}\n")
