@@ -31,6 +31,14 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
     # gp-log: yuvj420p
     # normal: yuv420p10le
 
+    # calculate parameters for crop and pad filters
+    # crop: w:h:x:y
+    # pad: w:h:x:y
+    v1_crop = f"crop={4096-abs(calibration['offset1_x'])}:{4096-abs(calibration['offset1_y'])}:{abs(calibration['offset1_x']) if calibration['offset1_x'] < 0 else 0}:{abs(calibration['offset1_y']) if calibration['offset1_y'] < 0 else 0}"
+    v2_crop = f"crop={4096-abs(calibration['offset2_x'])}:{4096-abs(calibration['offset2_y'])}:{abs(calibration['offset2_x']) if calibration['offset2_x'] < 0 else 0}:{abs(calibration['offset2_y']) if calibration['offset2_y'] < 0 else 0}"
+    v1_pad = f"pad=4096:4096:{abs(calibration['offset1_x']) if calibration['offset1_x'] > 0 else 0}:{abs(calibration['offset1_y']) if calibration['offset1_y'] > 0 else 0}"
+    v2_pad = f"pad=4096:4096:{abs(calibration['offset2_x']) if calibration['offset2_x'] > 0 else 0}:{abs(calibration['offset2_y']) if calibration['offset2_y'] > 0 else 0}"
+
     if cuda:
 
         # Unfortunate limitations of ffmpeg with CUDA acceleration
@@ -42,9 +50,9 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
 
         filter_complex = ""
         if dewarp: # around 8.5 FPS
-            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss][rss] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss] {v1_crop},{v1_pad} [lc]; [rss] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
         if not dewarp: # around 23 FPS
-            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls][rs] hstack=inputs=2 [out]; [out] hwupload_cuda"
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls] {v1_crop},{v1_pad} [lc]; [rs] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [out]; [out] hwupload_cuda"
 
         cmd = [
             "ffmpeg",
@@ -92,9 +100,9 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
 
         filter_complex = ""
         if dewarp:
-            filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
+            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_crop},{v1_pad} [ls]; [r] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
         if not dewarp:
-            filter_complex = "[0:v] crop=4648:4648,scale=4096:4096 [l] ; [1:v] crop=4648:4648,scale=4096:4096 [r] ; [l][r] hstack=inputs=2 [out]"
+            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_crop},{v1_pad} [ls]; [r] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [out]"
 
         cmd = [
             "ffmpeg",
@@ -208,17 +216,25 @@ def main():
         clip_start_tc = max(start_tc1, start_tc2)
 
         calibration_file1 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
-        calibration_file2 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+        calibration_file2 = video2.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
 
         if os.path.exists(calibration_file1) and os.path.exists(calibration_file2):
             with open(calibration_file1, "r") as f:
                 calibration1 = yaml.safe_load(f)
                 calibration["start_frame1"] = calibration1["start_frame"]
                 calibration["start_sec1"] = Timecode('29.97', frames=calibration["start_frame1"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
+                calibration["offset1_x"] = calibration1["x_offset"]
+                calibration["offset1_y"] = calibration1["y_offset"]
+                calibration["rotate_global1"] = calibration1["rotation_global"]
+                calibration["rotate_local1"] = calibration1["rotation_local"]
             with open(calibration_file2, "r") as f:
-                calibration1 = yaml.safe_load(f)
-                calibration["start_frame2"] = calibration1["start_frame"]
+                calibration2 = yaml.safe_load(f)
+                calibration["start_frame2"] = calibration2["start_frame"]
                 calibration["start_sec2"] = Timecode('29.97', frames=calibration["start_frame2"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
+                calibration["offset2_x"] = calibration2["x_offset"]
+                calibration["offset2_y"] = calibration2["y_offset"]
+                calibration["rotate_global2"] = calibration2["rotation_global"]
+                calibration["rotate_local2"] = calibration2["rotation_local"]
 
             print(f"Start times from calibration files: left: {calibration["start_frame1"]} - {calibration["start_sec1"]:.6f} and right: {calibration["start_frame1"]} - {calibration["start_sec2"]:.6f}")
 
