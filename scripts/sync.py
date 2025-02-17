@@ -225,16 +225,16 @@ def main():
                 calibration["start_sec1"] = Timecode('29.97', frames=calibration["start_frame1"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
                 calibration["offset1_x"] = calibration1["x_offset"]
                 calibration["offset1_y"] = calibration1["y_offset"]
-                calibration["rotate_global1"] = calibration1["rotation_global"]
-                calibration["rotate_local1"] = calibration1["rotation_local"]
+                calibration["rotate_global1"] = calibration1["rotation_global"] if "rotation_global" in calibration1 else 0.0
+                calibration["rotate_local1"] = calibration1["rotation_local"] if "rotation_local" in calibration1 else 0.0
             with open(calibration_file2, "r") as f:
                 calibration2 = yaml.safe_load(f)
                 calibration["start_frame2"] = calibration2["start_frame"]
                 calibration["start_sec2"] = Timecode('29.97', frames=calibration["start_frame2"]+1).to_realtime(True) # will be obsolete with ffmpeg bindings
                 calibration["offset2_x"] = calibration2["x_offset"]
                 calibration["offset2_y"] = calibration2["y_offset"]
-                calibration["rotate_global2"] = calibration2["rotation_global"]
-                calibration["rotate_local2"] = calibration2["rotation_local"]
+                calibration["rotate_global2"] = calibration2["rotation_global"] if "rotation_global" in calibration2 else 0.0
+                calibration["rotate_local2"] = calibration2["rotation_local"] if "rotation_local" in calibration2 else 0.0
 
             print(f"Start times from calibration files: left: {calibration["start_frame1"]} - {calibration["start_sec1"]:.6f} and right: {calibration["start_frame1"]} - {calibration["start_sec2"]:.6f}")
 

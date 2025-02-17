@@ -83,7 +83,7 @@ def main():
         calibration_changed = False
 
         calibration_file1 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
-        calibration_file2 = video1.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
+        calibration_file2 = video2.replace(".mp4", ".yaml").replace(".MP4", ".yaml")
 
         # if the calibration files exist, load the calibration data
         if os.path.exists(calibration_file1) and os.path.exists(calibration_file2):
@@ -97,6 +97,8 @@ def main():
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
+
+            print(start_frame1, start_frame2)
 
             if skip:
                 print("Skipping calibration for this video pair.")
