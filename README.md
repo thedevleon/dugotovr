@@ -30,6 +30,9 @@ Ensure that ffmpeg works with cuda, i.e. make sure this plays one of your gopro 
 ffplay -vcodec hevc_cuvid GX010004.mp4
 ```
 # In a nutshell - from two video files to VR180 video
+
+![calibrate](img/calibrate.png)
+
 To convert the raw footage from your GoPros into something you can watch in VR180 with any device, there are a couple of steps that need to happen:
   1. left and right footage clips need to be synchronized to the frame to avoid any ghosting and visual artifacts
   2. the clips need to be put side-by-side
@@ -54,6 +57,9 @@ This script will look through a folder of footage and find matching clips (based
 
 ## calibrate.py
 This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration. The calibration will be stored in a yaml file next to the mp4, and used by sync.py automatically if it is present.
+
+![setup](img/calibrate_stereo.png)
+![setup](img/calibrate_anaglyph.png)
 
 # The Setup™️
 2x GoPro Hero 13, FeiyuTech Scorp-C, SIRUI AM-404FL, Zoom H2essential, Movo SMM5-B Shock Mount, a 3D-printed bracket to hold both GoPros securely
