@@ -90,6 +90,7 @@ def main():
             with open(calibration_file1, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame1 = calibration["start_frame"]
+                start_frame1_orig = calibration["start_frame"]
                 x_offset = calibration["x_offset"]
                 y_offset = calibration["y_offset"]
                 rotation_global = calibration["rotation_global"] if "rotation_global" in calibration else rotation_global # backwards compatibility
@@ -97,6 +98,7 @@ def main():
             with open(calibration_file2, "r") as f:
                 calibration = yaml.safe_load(f)
                 start_frame2 = calibration["start_frame"]
+                start_frame2_orig = calibration["start_frame"]
 
             print(start_frame1, start_frame2)
 
@@ -124,15 +126,15 @@ def main():
             frame1 = np.copy(frames1[seek + start_frame1])
             frame2 = np.copy(frames2[seek + start_frame2])
             
+            # rotate the frames
+            frame1 = cv2.warpAffine(frame1, cv2.getRotationMatrix2D((2048, 2048), -(rotation_global + rotation_local), 1), (4096, 4096))
+            frame2 = cv2.warpAffine(frame2, cv2.getRotationMatrix2D((2048, 2048), -(rotation_global - rotation_local), 1), (4096, 4096))
+
             # offset the frames in x and y and split the difference between the two frames
             frame1 = np.roll(frame1, x_offset, axis=1)
             frame2 = np.roll(frame2, -x_offset, axis=1)
             frame1 = np.roll(frame1, y_offset, axis=0)
             frame2 = np.roll(frame2, -y_offset, axis=0)
-
-            # rotate the frames
-            frame1 = cv2.warpAffine(frame1, cv2.getRotationMatrix2D((2048, 2048), rotation_global + rotation_local, 1), (4096, 4096))
-            frame2 = cv2.warpAffine(frame2, cv2.getRotationMatrix2D((2048, 2048), rotation_global - rotation_local, 1), (4096, 4096))
 
             # add a horizontal grid to the frames
             if lines:
@@ -230,6 +232,8 @@ def main():
                 y_offset = 0
                 start_frame1 = start_frame1_orig
                 start_frame2 = start_frame2_orig
+                rotation_global = 0.0
+                rotation_local = 0.0
                 calibration_changed = True
 
             start_frame1 = min(max(0, start_frame1), frames_to_extract)
