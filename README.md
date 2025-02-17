@@ -8,7 +8,7 @@ In comparison to the many other offerings (Canon EOS RF 5.2mm Dual Fisheye, Cano
 However, the biggest pain points with two separate cameras is synchronization and a complex post-production workflow, which is hopefully made a little bit easier with this collection of tools.
 
 ## Tips for shooting with two GoPros
-- Use Timecode Sync regularly to keep both cameras in sync. This can be done in the [official gopro app](https://community.gopro.com/s/article/HERO12-Black-Timecode-Sync), or via the [labs firmware](https://gopro.github.io/labs/) + the [QR Code Generators](https://gopro.github.io/labs/control/custom/).
+- Use Timecode Sync **before each recording** to keep both cameras in sync. This can be done in the [official gopro app](https://community.gopro.com/s/article/HERO12-Black-Timecode-Sync), or via the [labs firmware](https://gopro.github.io/labs/) + the [QR Code Generators](https://gopro.github.io/labs/control/custom/).
 - To get the full resolution and FoV, you need the Max Lens Mod 2.0 / Ultrawide Lens with the following settings:
   - Lens: Standard (do not enable the max / ultrawide lens mode)
   - Framing: 8:7
@@ -21,8 +21,8 @@ However, the biggest pain points with two separate cameras is synchronization an
   -> you should be seeing (almost) the full fisheye in the preview, without it being stretched, cut-off or moving when you move the camera.
 
 ## Prerequisites
-- NVidia GPU and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit)
-- FFmpeg with CUDA support (i.e. ffmpeg-git-full for windows: https://www.gyan.dev/ffmpeg/builds/) or [compiled from source](https://docs.nvidia.com/video-technologies/video-codec-sdk/12.0/ffmpeg-with-nvidia-gpu/index.html)
+- NVidia GPU and [CUDA toolkit](https://developer.nvidia.com/cuda-toolkit) if you want GPU-accelerated hevc en-/decode.
+- FFmpeg with CUDA support (i.e. `choco install ffmpeg-full` on windows) or [compiled from source](https://docs.nvidia.com/video-technologies/video-codec-sdk/12.0/ffmpeg-with-nvidia-gpu/index.html)
 - Python
 
 Ensure that ffmpeg works with cuda, i.e. make sure this plays one of your gopro clips:
@@ -36,27 +36,18 @@ ffplay -vcodec hevc_cuvid GX010004.mp4
 To convert the raw footage from your GoPros into something you can watch in VR180 with any device, there are a couple of steps that need to happen:
   1. left and right footage clips need to be synchronized to the frame to avoid any ghosting and visual artifacts
   2. the clips need to be put side-by-side
-  3. left and right need to be calibrated (i.e. slightly transformed) so that the stereo looks correct
+  3. left and right need to be stereo calibrated (i.e. slightly transformed in x/y and rotation) so that the stereo looks correct
   4. the fisheye footage needs to be remapped into an equirectangular format
-
-On the EOS VR side, this can be done with the EOS VR Utility, however this will cost you 5$ per month for something you can do for free, and only works with Canon Cameras. You also have very little control about the process, and can only adjust basic settings.
-
-Steps 3 and 4 can be done combined and more efficient with an STMap.
-To generate such an STMap, you can use the KartaVR Fusion Composition "Dual Fisheye STMap Creation v001".
-
-I recommend to watch the following videos to get a better understanding:
-- https://www.youtube.com/watch?v=kwVlVEXg3og
-- recent videos from sailing360: https://www.youtube.com/@Sailing360
 
 # Scripts
 
 ## sync.py
-This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), although it is a lot slower than just merging, and also does not allow for stereo calibration (yet). Footage can look "fine" without stereo calibration, but doing it is highly recommended.
+This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), and stereo calibration if it has been done beforehand with `calibrate.py`. Footage can look "fine" without stereo calibration, but doing it is highly recommended for the best viewing experience.
 
 **NOTE**: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
 ## calibrate.py
-This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration. The calibration will be stored in a yaml file next to the mp4, and used by sync.py automatically if it is present.
+This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration for x/y offset and global/local rotation. The calibration will be stored in a yaml file next to the mp4, and used by sync.py automatically if it is present.
 
 ![setup](img/calibrate_stereo.png)
 ![setup](img/calibrate_anaglyph.png)
@@ -78,31 +69,16 @@ Ingress
 - Run the `calibrate.py` script for timecode alignment and stereo calibration (can be skipped)
 - Run the `sync.py` script to automatically organize, match, crop, trim, align based on timecode and merge into a single sbs video per pair.
 
-Process (for each combined clip)
-- Generate STMap (in DaVinci Fusion) using the "STMap Gen" Composition, or re-use an earlier STMap if you're confident the cameras have not moved. You might have to make a screenshot of the first frame to use in the "Loader", mp4 doesn't seem to work.
-- Apply the STMap in DaVinci Fusion using "kvrSuperSTMap" if you need to do stereo calibration, or just STMapper if you did the stereo calibration already when creating the STMap
-  
-**NOTES**
-- The GlobalAlign node (part of kvrSuperSTMap) seems to be a bottleneck. To skip it, use the Center property of kvrCropStereo to calibrate and bake it into the STMap. Then you can create a simpler graph without the GlobalAlign to speed up processing with the STMap.
-- If applying the STMap in DaVinci is too slow, you can also use TouchDesigner, see https://kartaverse.github.io/Kartaverse-Docs/#/TouchDesigner.
-- It's best to process all footage in Fusion beforehand, and then using only the processed footage in Resolve. That way you're not re-applying the STMap with every render, and can also generate proxies for the processed footage.
-
 
 ## Benchmarks
 Performed on a Ryzen 3700X, 32GB RAM, RTX 2080 Super.
-I would assume that STMap-based workflows will be greatly accelerated with a better GPU.
 
 ### sync.py
-- with cuda, without dewarp -> 26 FPS
-- with cuda, with dewarp -> 9 FPS
-
-### DaVinci
-- dewarped -> 4.5 FPS
-- fisheye + GlobalAlign + kvrViewer -> 0.5 FPS
-- fisheye + kvrSuperSTMap -> 0.14 FPS 
-- fisheye + STMapper (with stereo correction baked-in) -> 1 FPS
+- with cuda, without dewarp, with stereo correction -> 26 FPS
+- with cuda, with dewarp, with stereo correction -> 9 FPS
+- without cuda, with dewarp, with stereo correction -> 1.6 FPS
 
 # Notes
-- Make sure the GoPros are very secure and aligned. If they get loose during your filming, your footage will be ruined. And if they keep moving, you will have to keep calibrating them.
-- Doing the conversion from dual fisheye to equirectangular is expensive, and if you don't have the beefiest PC, doing it in Resolve with KartaVRs kvrCreateStereo, kvrCropStereo, kvrViewer, etc... is painfully slow. STMaps will 
+- Make sure the GoPros are very secure and aligned, if they keep moving, you'll have to redo the calibration for every clip.
 - The Ultrawide / Max Lens is waterpoof up to 5m, but won't actually work well underwater due to pesky limitations on how light works underwater. If you want a sharp picture, you need a dome with a decent spacing to the lens.
+- I originally used Davinci Resolve and the Kartaverse plugins, but this solution is completely free, cross-platform and much faster than DaVinci Resolve.
