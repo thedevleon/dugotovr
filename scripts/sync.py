@@ -8,7 +8,7 @@ import math
 
 from util import *
 
-def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, preview):
+def process_videos(video1, video2, calibration, output_file, tc, dewarp, mask, cuda, preview):
     cmd = []
 
     # additional accelerations to look into
@@ -54,9 +54,15 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
 
         filter_complex = ""
         if dewarp: # around 8.5 FPS
-            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss] {v1_rotate} [lr]; [rss] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [lc]; [rr] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]; [dewarp] hwupload_cuda" 
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss] {v1_rotate} [lr]; [rss] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [lc]; [rr] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [stack]; [stack] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]"
+
+            if mask is not None:
+                filter_complex += f"; [2:v] format=yuv420p10le [mask]; [mask][dewarp] multiply [out]; [out] hwupload_cuda"
+            else:
+                filter_complex += f"; [dewarp] hwupload_cuda"
+
         if not dewarp: # around 23 FPS
-            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls] {v1_rotate} [lr]; [rs] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [lc]; [rr] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [out]; [out] hwupload_cuda"
+            filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le[rs]; [ls] {v1_rotate} [lr]; [rs] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [lc]; [rr] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [stack]; [stack] hwupload_cuda"
 
         cmd = [
             "ffmpeg",
@@ -84,6 +90,8 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
             f"{calibration["start_sec2"]:.6f}",
             "-i",
             video2,
+            "-i" if mask else None,
+            mask if mask else None,
             "-shortest", # stop encoding when the shortest input ends
             "-t" if preview else None,
             "15" if preview else None,
@@ -104,9 +112,12 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
 
         filter_complex = ""
         if dewarp:
-            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [out]; [out] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs"
+            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [stack]; [stack] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [out]"
+            if mask is not None:
+                filter_complex += f"; [2:v] format=p010le [mask]; [out][mask] multiply"
         if not dewarp:
             filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [out]"
+
 
         cmd = [
             "ffmpeg",
@@ -118,6 +129,8 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, cuda, p
             f"{calibration["start_sec2"]:.6f}",
             "-i",
             video2,
+            "-i" if mask else None,
+            mask if mask else None,
             "-shortest", # stop encoding when the shortest input ends
             "-t" if preview else None,
             "15" if preview else None,
@@ -153,6 +166,7 @@ def main():
     parser.add_argument("egress", help="the path to egress to")
     parser.add_argument("-o", "--organize", help="create a folder structure of year-mm-dd/ at the egress", action="store_true", default=True)
     parser.add_argument("-d", "--dewarp", help="dewarp the fisheye video to VR180", action="store_true", default=False)
+    parser.add_argument("-m", "--mask", help="apply a mask to the dewarped video", default=None)
     parser.add_argument("-p", "--preview", help="generate only a preview (15s)", action="store_true", default=False)
     parser.add_argument("--cuda", help="use CUDA accelerated operations", action="store_true", default=True)
     parser.add_argument('--no-cuda', dest='cuda', action='store_false')
@@ -169,6 +183,7 @@ def main():
     dewarp = args.dewarp
     cuda = args.cuda
     preview = args.preview
+    mask = args.mask
 
     # check if the ingress directory exists
     if not os.path.exists(ingress):
@@ -273,8 +288,10 @@ def main():
             options += "_dewarp"
         if preview:
             options += "_preview"
+        if mask is not None:
+            options += "_mask"
         output_file = os.path.join(egress_full, f"{os.path.splitext(os.path.basename(video1))[0]}_{os.path.splitext(os.path.basename(video2))[0]}{options}.mp4")
-        process_videos(video1, video2, calibration, output_file, clip_start_tc, dewarp, cuda, preview)
+        process_videos(video1, video2, calibration, output_file, clip_start_tc, dewarp, mask, cuda, preview)
 
 if __name__ == "__main__":
     main()
