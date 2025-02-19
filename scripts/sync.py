@@ -57,7 +57,7 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, mask, c
             filter_complex = f"[0:v] scale_cuda=4096:4096:format=p010le [l]; [1:v] scale_cuda=4096:4096:format=p010le [r]; [l] hwdownload,format=p010le [ls]; [r] hwdownload,format=p010le [rs]; [ls] format=p010le,format=yuv420p10le [lss]; [rs] format=p010le,format=yuv420p10le [rss]; [lss] {v1_rotate} [lr]; [rss] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [lc]; [rr] {v2_crop},{v2_pad} [rc]; [lc][rc] hstack=inputs=2 [stack]; [stack] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]"
 
             if mask is not None:
-                filter_complex += f"; [2:v] format=yuv420p10le [mask]; [mask][dewarp] multiply [out]; [out] hwupload_cuda"
+                filter_complex += f"; [dewarp][2:v] overlay,format=yuv420p10 [out]; [out] hwupload_cuda"
             else:
                 filter_complex += f"; [dewarp] hwupload_cuda"
 
@@ -112,9 +112,9 @@ def process_videos(video1, video2, calibration, output_file, tc, dewarp, mask, c
 
         filter_complex = ""
         if dewarp:
-            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [stack]; [stack] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [out]"
+            filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [stack]; [stack] v360=fisheye:hequirect:ih_fov=177:iv_fov=177:in_stereo=sbs:out_stereo=sbs [dewarp]"
             if mask is not None:
-                filter_complex += f"; [2:v] format=p010le [mask]; [out][mask] multiply"
+                filter_complex += f"; [dewarp][2:v] overlay,format=yuv420p10"
         if not dewarp:
             filter_complex = f"[0:v] crop=4648:4648,scale=4096:4096 [l]; [1:v] crop=4648:4648,scale=4096:4096 [r]; [l] {v1_rotate} [lr]; [r] {v2_rotate} [rr]; [lr] {v1_crop},{v1_pad} [ls]; [rr] {v2_crop},{v2_pad} [rs]; [ls][rs] hstack=inputs=2 [out]"
 

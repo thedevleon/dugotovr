@@ -33,7 +33,7 @@ def main():
     parser.add_argument("ingress", help="the path to ingress from")
     parser.add_argument("-s", "--skip", help="skip already calibrated files", action="store_true")
 
-    if len(sys.argv) < 1:
+    if len(sys.argv) < 2:
         parser.print_help()
         sys.exit(1)
 

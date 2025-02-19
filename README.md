@@ -42,12 +42,65 @@ To convert the raw footage from your GoPros into something you can watch in VR18
 # Scripts
 
 ## sync.py
-This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim them so that they are aligned (automatically based on timecode), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing. Optionally, this can also perform fisheye to equirectangular conversion (--dewarp), and stereo calibration if it has been done beforehand with `calibrate.py`. Footage can look "fine" without stereo calibration, but doing it is highly recommended for the best viewing experience.
+```
+usage: sync.py [-h] [-o] [-d] [-m MASK] [-p] [--cuda] [--no-cuda] ingress egress
+
+positional arguments:
+  ingress               the path to ingress from
+  egress                the path to egress to
+
+options:
+  -h, --help            show this help message and exit
+  -o, --organize        create a folder structure of year-mm-dd/ at the egress
+  -d, --dewarp          dewarp the fisheye video to VR180
+  -m MASK, --mask MASK  apply a mask to the dewarped video
+  -p, --preview         generate only a preview (15s)
+  --cuda                use CUDA accelerated operations
+  --no-cuda             don't use CUDA
+```
+
+This script will look through a folder of footage and find matching clips (based on timecode and date/time metadata), trim/sync them so that they are aligned (automatically based on timecode or via manually adjusted calibration), crop the fisheye into a 1:1 ratio, and combine the clips into a single side-by-side file for further processing.
+This can also perform fisheye to equirectangular conversion (--dewarp), and stereo calibration if it has been done beforehand with `calibrate.py`.
+Footage can look "fine" without stereo calibration, but doing it is highly recommended for the best viewing experience.
+Finally, a mask can also be applied (see templates in mask folder) to create a clean edge and to optionally remove a bit of FoV to hide the left/right lens only visible in each eye.
 
 **NOTE**: for the script to have any idea which one is the left and which one is the right camera, you will need to have subfolders denoting which clips are left, and which are right.
 
+Examples:
+
+Run with CUDA, dewarp and organize:
+```
+ python .\scripts\sync.py --dewarp --cuda --organize .\video\ingress\test .\video\synced
+```
+
+Example: Run with CUDA, dewarp, organize and apply a mask to hide the lenses
+```
+ python .\scripts\sync.py --dewarp --cuda --organize --mask .\mask\hidden_lens_transparent.png .\video\ingress\test .\video\synced
+```
+
+Example: Run with CUDA, dewarp, organize and apply a mask, but only generate a preview of 15s per clip
+```
+ python .\scripts\sync.py --preview --dewarp --cuda --organize --mask .\mask\hidden_lens_transparent.png .\video\ingress\test .\video\synced
+```
+
 ## calibrate.py
+```
+usage: calibrate.py [-h] [-s] ingress
+
+positional arguments:
+  ingress     the path to ingress from
+
+options:
+  -h, --help  show this help message and exit
+  -s, --skip  skip already calibrated files
+```
+
 This script allows to interactively synchronize clips on a frame-by-frame basis (if the timecode has drifted), and to perform stereo calibration for x/y offset and global/local rotation. The calibration will be stored in a yaml file next to the mp4, and used by sync.py automatically if it is present.
+
+Example: 
+```
+python .\scripts\calibrate.py path\to\footage
+```
 
 ![setup](img/calibrate_stereo.png)
 ![setup](img/calibrate_anaglyph.png)
