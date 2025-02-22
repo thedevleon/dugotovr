@@ -8,16 +8,35 @@ import yaml
 
 from util import *
 
-def extract_frames(video, num_frames):
-    out, err = (
+def extract_frames(video, num_frames, cuda):
+
+    input_args = {}
+    if cuda:
+        input_args["hwaccel"] = "cuda",
+        input_args["hwaccel_output_format"] = "cuda",
+        input_args["vcodec"] = "hevc_cuvid",
+        input_args["crop"] = "0x0x332x332"
+
+    stream = (
         ffmpeg
-        .input(video)
+        .input(video, hwaccel="cuda", hwaccel_output_format="cuda", vcodec="hevc_cuvid", crop="0x0x332x332")
         .trim(end_frame=num_frames)
-        .filter('crop', 4648, 4648) # crop to the center of the fisheye
-        .filter('scale', 4096, 4096) # downscale to 4096x4096
-        .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-        .run(capture_stdout=True)
     )
+
+    if not cuda:
+        stream = stream.filter('crop', 4648, 4648) # crop to the center of the fisheye
+    else:
+        stream = stream.filter('hwdownload')
+
+    stream = stream.filter('scale', 4096, 4096) # downscale to 4096x4096
+
+    stream = stream.output('pipe:', format='rawvideo', pix_fmt='rgb24')
+
+    command = ffmpeg.compile(stream, overwrite_output=True)
+    print(" ".join(command))
+
+    out, _ = stream.run(capture_stdout=True)
+
     video = (
         np.frombuffer(out, np.uint8)
         .reshape([-1, 4096, 4096, 3])
@@ -31,6 +50,7 @@ def extract_frames(video, num_frames):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("ingress", help="the path to ingress from")
+    parser.add_argument("-c", "--cuda", help="use CUDA for decoding", action="store_true")
     parser.add_argument("-s", "--skip", help="skip already calibrated files", action="store_true")
 
     if len(sys.argv) < 2:
@@ -41,6 +61,7 @@ def main():
 
     ingress = args.ingress
     skip = args.skip
+    cuda = args.cuda
 
     # check if the ingress directory exists
     if not os.path.exists(ingress):
@@ -117,8 +138,8 @@ def main():
                 start_frame1_orig = start_difference.frames
             
         # extract the first 30 frames of each video
-        frames1 = extract_frames(video1, frames_to_extract+1)
-        frames2 = extract_frames(video2, frames_to_extract+1)
+        frames1 = extract_frames(video1, frames_to_extract+1, cuda)
+        frames2 = extract_frames(video2, frames_to_extract+1, cuda)
         
         while True:
             print(f"Seek: {seek}, start frame left: {start_frame1}, start frame right: {start_frame2}, x_offset: {x_offset}, y_offset: {y_offset}, rotation (local): {rotation_local}, rotation (global): {rotation_global}")
